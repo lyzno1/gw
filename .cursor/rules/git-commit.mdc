@@ -1,0 +1,64 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+### 1. Header (头部)
+
+Header 是必需的，且只有一行，包含三个部分：`type` (类型)，可选的 `scope` (范围) 和 `subject` (主题)。
+
+#### 1.1. `type` (类型)
+
+用于说明提交的类别，必须是以下小写关键字之一：
+
+*   **feat**: 新功能 (feature)
+*   **fix**: Bug 修复
+*   **docs**: 文档相关的变更 (例如 README, 注释, JSDoc 等)
+*   **style**: 代码风格的调整 (不影响代码含义的修改，例如空格、格式化、缺少分号等)
+*   **refactor**: 代码重构 (既不是新增功能，也不是修复 bug 的代码变动，例如重命名变量、提取函数等)
+*   **perf**: 性能优化相关的代码变动
+*   **test**: 添加或修改测试用例
+*   **build**: 影响构建系统或外部依赖的更改 (例如 gulp, webpack, npm, Dockerfile)
+*   **ci**: 对 CI (持续集成) 配置文件和脚本的更改 (例如 GitHub Actions, Travis, CircleCI)
+*   **chore**: 其他不修改源代码或测试文件的提交 (例如更新依赖、构建脚本调整、辅助工具等)
+*   **revert**: 撤销之前的某个提交
+
+**示例:** `feat`, `fix`, `docs`
+
+#### 1.2. `scope` (可选的范围)
+
+Scope 用于说明本次提交影响的范围，例如模块名、组件名、文件名等。Scope 应该用小写字母，并放在括号中。
+
+*   对于本项目 (`git_workflow.sh` 及其相关脚本)，scope 可以是：
+    *   `core`: 核心逻辑 (`git_workflow.sh` 主文件, `core_utils/`)
+    *   `actions`: 某个具体的 action 文件 (例如 `actions/cmd_new`, `actions/gw_new`)
+    *   `config`: 配置相关 (`core_utils/config_vars.sh`)
+    *   `utils`: 工具函数 (`core_utils/utils.sh`, `core_utils/utils_print.sh`)
+    *   `docs`: 文档更新 (如 README, 此规范文件)
+    *   `ci`: CI/CD 相关
+    *   `all`: 影响范围广，难以界定具体模块
+    *   或者直接是受影响的主要文件名（不含路径和后缀），例如 `gw_new`, `cmd_finish`。
+
+**示例:** `feat(core)`, `fix(actions/cmd_finish)`, `docs(readme)`, `refactor(utils)`
+
+如果影响范围较广或难以确定，可以省略 scope。
+
+#### 1.3. `subject` (主题)
+
+Subject 是对提交目的的简短描述，不超过 50 个字符。
+
+*   使用祈使句，现在时态，例如 "change" 而不是 "changed" 或 "changes"。
+*   首字母不需要大写。
+*   句末不加句号 (`.`)。
+
+**示例:** `feat(core): add interactive stash option to gw new`
+
+### 2. Body (可选的正文)
+
+Body 是对提交的详细描述，可以有多行。Header 和 Body 之间必须有一个空行。
+
+*   与 subject 一样，使用祈使句，现在时态。
+*   说明代码变动的背景、原因和具体实现方式。
+*   每行建议不超过 72 个字符，以便在各种 Git 工具中良好显示。
+
+**示例:**

@@ -50,6 +50,7 @@ declare -a action_files=(
     "${SCRIPT_DIR}/actions/cmd_diff.sh"
     "${SCRIPT_DIR}/actions/cmd_fetch.sh"
     "${SCRIPT_DIR}/actions/cmd_finish.sh"
+    "${SCRIPT_DIR}/actions/cmd_gh_create.sh"
     "${SCRIPT_DIR}/actions/cmd_init.sh"
     "${SCRIPT_DIR}/actions/cmd_log.sh"
     "${SCRIPT_DIR}/actions/cmd_merge.sh"
@@ -118,15 +119,19 @@ main() {
     shift
     
     case "$command" in
-        init) # 新增
+        gh-create)
+            cmd_gh_create "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
+        init)
             cmd_init "$@"
             LAST_COMMAND_STATUS=$?
             ;;
-        config) # 新增
+        config)
             cmd_config "$@"
             LAST_COMMAND_STATUS=$?
             ;;
-        remote) # 新增
+        remote)
             cmd_remote "$@"
             LAST_COMMAND_STATUS=$?
             ;;

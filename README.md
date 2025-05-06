@@ -1,6 +1,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**`gw` (Git Workflow) v3.0：告别繁琐，拥抱流畅——您的智能 Git 工作流引擎**
+###`gw` (Git Workflow) v3.0：告别繁琐，拥抱流畅——您的智能 Git 工作流引擎###
 
 **您是否还在经历这些 Git "痛点"？**
 

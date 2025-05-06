@@ -18,43 +18,23 @@ gw_new() {
     local base_branch_param=""
     local local_flag=false
 
-    # 使用 getopt 进行更健壮的参数解析
-    # 定义短选项和长选项
-    # -o 表示短选项，后面是可接受的短选项字符
-    # --long 表示长选项，后面是逗号分隔的长选项名
-    # n: 表示选项后面需要参数 (例如 -b <branch>)
-    # 如果 getopt 不可用，可以退回到简单的参数解析
-    if ! command -v getopt >/dev/null 2>&1; then
-        print_warning "getopt 命令未找到，使用基础参数解析。这可能不支持所有高级选项。"
-        # 基础参数解析 (仅支持 gw new <branch> [base] --local)
-        if [ -z "$1" ]; then
-            print_error "错误：需要提供新分支名称。"
-            show_help # 假设 show_help 可用
-            return 1
+    # 检测 getopt 类型
+    local use_gnu_getopt=false
+    if command -v getopt >/dev/null 2>&1; then
+        getopt --test > /dev/null 2>&1
+        if [ $? -eq 4 ]; then
+            use_gnu_getopt=true
         fi
-        new_branch_name="$1"
-        shift
-        if [[ "$1" != "--local" && -n "$1" ]]; then
-            base_branch_param="$1"
-            shift
-        fi
-        if [[ "$1" == "--local" ]]; then
-            local_flag=true
-            shift
-        fi
-        if [ $# -gt 0 ]; then
-            print_warning "忽略了额外的参数: $@"
-        fi
-    else
+    fi
+
+    if $use_gnu_getopt; then
+        # GNU getopt 逻辑
         parsed_args=$(getopt -o l --long local,base: -n 'gw new' -- "$@")
-        echo "DEBUG: parsed_args before eval: [$parsed_args]" # DEBUG LINE
         if [ $? != 0 ]; then
-            # show_help # getopt 错误时显示帮助
             echo "用法: gw new <new_branch_name> [--local] [--base <base_branch>]"
             return 1
-        fi 
+        fi
         eval set -- "$parsed_args"
-        echo "DEBUG: \$@ after eval: [$@]" # DEBUG LINE
         while true; do
             case "$1" in
                 --local|-l)
@@ -70,28 +50,55 @@ gw_new() {
                     break
                     ;;
                 *)
-                    # 应为 getopt 处理了未知选项
                     break
                     ;;
             esac
         done
-        # 第一个非选项参数是 new_branch_name
         if [ -z "$1" ]; then
             print_error "错误：需要提供新分支名称。"
-            # show_help
             echo "用法: gw new <new_branch_name> [--local] [--base <base_branch>]"
             return 1
         fi
         new_branch_name="$1"
         shift
-        if [ $# -gt 0 ]; then # 剩下的应该是base_branch (如果未使用--base) 或无效参数
-             if [ -z "$base_branch_param" ] && [[ ! "$1" =~ ^- ]]; then # 如果未使用 --base 且不是选项
+        if [ $# -gt 0 ]; then
+             if [ -z "$base_branch_param" ] && [[ ! "$1" =~ ^- ]]; then
                  base_branch_param="$1"
                  shift
              fi
              if [ $# -gt 0 ]; then
-                print_warning "忽略了 'new' 命令无法识别的额外参数: $@"
+                print_warning "忽略了 'new' 命令无法识别的额外参数 (GNU getopt): $@"
              fi
+        fi
+    else
+        # getopt 未找到或非 GNU getopt，使用基础参数解析
+        if command -v getopt >/dev/null 2>&1; then
+             print_warning "检测到非 GNU getopt，将使用基础参数解析。长选项如 --base 可能不受支持或需按 'gw new <branch> [base] --local' 格式。建议安装 GNU getopt (如 macOS: brew install gnu-getopt)。"
+        else
+             print_warning "getopt 命令未找到，使用基础参数解析。这可能不支持所有高级选项。"
+        fi
+        
+        if [ -z "$1" ]; then
+            print_error "错误：需要提供新分支名称。"
+            echo "用法 (基础解析): gw new <branch_name> [base_branch] [--local]"
+            return 1
+        fi
+        new_branch_name="$1"
+        shift
+        
+        # 尝试解析基础分支 (作为第二个位置参数)
+        if [[ "$1" != "--local" && -n "$1" ]]; then
+            base_branch_param="$1"
+            shift
+        fi
+        
+        if [[ "$1" == "--local" ]]; then
+            local_flag=true
+            shift
+        fi
+        
+        if [ $# -gt 0 ]; then
+            print_warning "忽略了 'new' 命令无法识别的额外参数 (基础解析): $@"
         fi
     fi
 
@@ -176,4 +183,5 @@ gw_new() {
 
     print_success "操作完成！已创建并切换到新分支 '${new_branch_name}'。"
     print_info "现在可以开始在新分支上进行开发了。"
+} 
 } 

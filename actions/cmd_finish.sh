@@ -77,7 +77,7 @@ cmd_finish() {
         git status -s
         echo ""
         echo "在完成前，您需要处理这些变更:"
-        echo "1) 暂存并提交所有变更"
+        echo "1) 处理并提交变更"
         echo "2) 暂存变更 (stash) (不推荐，推送后 PR 中不包含)"
         echo "3) 取消完成操作"
         echo -n "请选择操作 [1-3]: "
@@ -85,26 +85,20 @@ cmd_finish() {
 
         case "$choice" in
             1)
-                print_step "正在添加所有变更到暂存区..."
-                if ! git add -A; then
-                    print_error "添加变更失败 (git add -A)。请手动处理后重试。"
+                print_step "准备处理并提交变更..."
+                # 调用 cmd_save，它会处理暂存和提交，并允许编辑提交信息
+                # cmd_save 会自行处理 git add，所以这里的 git add -A 步骤可以省略
+                # 它也会自行检查暂存区是否为空
+                if ! command -v cmd_save >/dev/null 2>&1;
+                    then print_error "命令 'cmd_save' 未找到或未导入。"; return 1;
+                fi
+
+                if ! cmd_save; then # 调用 cmd_save (它应该处理交互式提交信息)
+                    print_error "保存 (暂存和提交) 失败或被取消。请手动处理后重试。"
                     return 1
                 fi
-                
-                if git diff --cached --quiet; then
-                    print_info "没有需要提交的变更 (暂存区为空)。"
-                else
-                    print_step "请提交暂存的变更..."
-                    # 确保 cmd_commit 可用
-                    if ! command -v cmd_commit >/dev/null 2>&1;
-                        then print_error "命令 'cmd_commit' 未找到或未导入。"; return 1;
-                    fi
-                    if ! cmd_commit; then # 调用 cmd_commit (通常会打开编辑器或使用其默认逻辑)
-                        print_error "提交失败或被取消。请手动提交后重试。"
-                        return 1
-                    fi
-                    echo -e "${GREEN}变更已成功提交。${NC}"
-                fi
+                # cmd_save 成功后，变更已提交，这里不需要再额外处理
+                echo -e "${GREEN}变更已成功保存 (暂存并提交)。${NC}"
                 ;;
             2)
                 echo -e "${BLUE}正在暂存变更...${NC}"

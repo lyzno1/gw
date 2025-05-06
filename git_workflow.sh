@@ -191,7 +191,7 @@ main() {
             ;;
         main|master)
             echo -e "${BLUE}准备推送主分支 ($MAIN_BRANCH)...${NC}"
-            do_push_with_retry "$REMOTE_NAME" "$MAIN_BRANCH" "$@"
+            cmd_push "$REMOTE_NAME" "$MAIN_BRANCH" "$@"
             LAST_COMMAND_STATUS=$?
             ;;
         1|first)
@@ -203,13 +203,13 @@ main() {
             else
                 echo -e "${BLUE}执行首次推送 (模式 1) 分支 '$branch_arg' (带 -u)...${NC}"
                 shift
-                do_push_with_retry "-u" "$REMOTE_NAME" "$branch_arg" "$@"
+                cmd_push "-u" "$REMOTE_NAME" "$branch_arg" "$@"
                 LAST_COMMAND_STATUS=$?
             fi
             ;;
         2)
             echo -e "${BLUE}执行推送主分支 (模式 2)...${NC}"
-            do_push_with_retry "$REMOTE_NAME" "$MAIN_BRANCH" "$@"
+            cmd_push "$REMOTE_NAME" "$MAIN_BRANCH" "$@"
             LAST_COMMAND_STATUS=$?
             ;;
         3|other)
@@ -221,7 +221,7 @@ main() {
             else
                 echo -e "${BLUE}执行推送指定分支 (模式 3) '$branch_arg'...${NC}"
                 shift
-                do_push_with_retry "$REMOTE_NAME" "$branch_arg" "$@"
+                cmd_push "$REMOTE_NAME" "$branch_arg" "$@"
                 LAST_COMMAND_STATUS=$?
             fi
             ;;
@@ -232,7 +232,7 @@ main() {
             if [ $? -ne 0 ]; then 
                 LAST_COMMAND_STATUS=1
             else
-                do_push_with_retry "$REMOTE_NAME" "$current_branch" "$@"
+                cmd_push "$REMOTE_NAME" "$current_branch" "$@"
                 LAST_COMMAND_STATUS=$?
             fi
             ;;

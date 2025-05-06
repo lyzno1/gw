@@ -24,19 +24,18 @@ cmd_rm_branch() {
     shift # 移除 target 参数
     
     # 解析剩余参数
-    local other_args_for_single_delete=()
+    # local other_args_for_single_delete=() # 不再需要，因为 git branch -d/-D 不接受额外参数
     for arg in "$@"; do
         case "$arg" in
             -f|--force)
                 force=true
-                other_args_for_single_delete+=("$arg") # 单个删除时也可能需要
                 ;;
-            --delete-remotes) # 新增选项，主要用于 'all' 模式，但也可以考虑用于单个分支
+            --delete-remotes) 
                 delete_all_remotes_too=true
-                # other_args_for_single_delete+=("$arg") # 这个选项不直接传给 git branch
                 ;;
             *)
-                other_args_for_single_delete+=("$arg") # 收集未知参数给单个分支删除用
+                # 对于 'gw rm all' 和 'gw rm <branch>'，除了 -f 和 --delete-remotes，其他参数通常不适用
+                print_warning "未知参数 '$arg' 在 'gw rm $target' 命令中将被忽略。"
                 ;;
         esac
     done
@@ -170,14 +169,37 @@ cmd_rm_branch() {
         fi
 
         local local_delete_flag="-d"
+        # 确定删除标志前，先获取上游信息，因为强制删除的确认逻辑可能先于本地删除执行
+        
+        local upstream_info=""
+        local actual_remote_for_deletion="$REMOTE_NAME" # 默认为配置的远程
+        local actual_remote_branch_for_deletion="$branch_to_del" # 默认为本地分支名
+        local upstream_found_and_parsed=false
+
+        # 尝试获取上游信息
+        # 这个检查必须在分支实际删除前，但分支有效性检查已在前头完成
+        upstream_info=$(git for-each-ref --format='%(upstream:short)' "refs/heads/$branch_to_del" 2>/dev/null)
+        if [ -n "$upstream_info" ] && [[ "$upstream_info" == */* ]]; then
+            actual_remote_for_deletion=$(dirname "$upstream_info")
+            actual_remote_branch_for_deletion=$(basename "$upstream_info")
+            upstream_found_and_parsed=true
+            print_info "本地分支 '$branch_to_del' 当前跟踪远程分支 '${actual_remote_for_deletion}/${actual_remote_branch_for_deletion}'。"
+        else
+            print_info "本地分支 '$branch_to_del' 没有配置有效的上游跟踪信息或无法解析。"
+            print_info "如果需要删除远程分支，将尝试 '$REMOTE_NAME/$branch_to_del'。"
+        fi
+
         if $force; then
             local_delete_flag="-D"
             print_warning "将强制删除本地分支 '$branch_to_del'。"
         else
             # 检查是否已合并到当前分支 (或者主分支更合适？对于单个删除，通常是当前分支)
+            # 注意: 这个合并检查可能与一些用户期望不同，例如，如果用户想删除未合并到当前但已合并到主分支的特性分支
+            # 但为了与 git branch -d 的默认行为（检查合并状态）保持某种一致性，这里保留。
+            # 如果分支未合并，会触发下面的确认逻辑。
             if ! git branch --merged | grep -qw "$branch_to_del"; then 
                  print_warning "分支 '$branch_to_del' 包含未合并到当前分支 ('$current_branch') 的更改。"
-                 if confirm_action "是否要强制删除此本地分支？" "N"; then
+                 if confirm_action "是否要强制删除此本地分支 '$branch_to_del'？" "N"; then
                      local_delete_flag="-D"
                  else
                      print_info "已取消分支删除操作。"
@@ -190,27 +212,51 @@ cmd_rm_branch() {
         if git branch "$local_delete_flag" "$branch_to_del"; then
             print_success "成功删除本地分支 '$branch_to_del'"
             
-            # 检查对应的远程分支是否存在，并根据 --delete-remotes (如果为此模式设计) 或单独确认
-            local actual_remote_name_for_single_delete="$REMOTE_NAME" # 将来可以更智能
-            if git ls-remote --exit-code --heads "$actual_remote_name_for_single_delete" "$branch_to_del" > /dev/null 2>&1; then
-                # 如果是 all 模式调用到这里，会用 delete_all_remotes_too
-                # 如果是单个 rm 调用，我们可以让 --delete-remotes 也对单个生效，或者每次都问
+            local remote_branch_display_name="${actual_remote_for_deletion}/${actual_remote_branch_for_deletion}"
+            
+            # 检查对应的远程分支是否存在，并根据 --delete-remotes 或单独确认
+            if git ls-remote --exit-code --heads "$actual_remote_for_deletion" "$actual_remote_branch_for_deletion" > /dev/null 2>&1; then
                 local should_delete_this_remote=false
                 if $delete_all_remotes_too; then # 如果 gw rm <branch> --delete-remotes
                     should_delete_this_remote=true
-                elif ! $delete_all_remotes_too; then # 如果是 gw rm <branch> (没有 --delete-remotes)
-                    if confirm_action "是否同时删除远程分支 '$actual_remote_name_for_single_delete/$branch_to_del'？" "N"; then
+                    if $upstream_found_and_parsed && ( [ "$branch_to_del" != "$actual_remote_branch_for_deletion" ] || [ "$REMOTE_NAME" != "$actual_remote_for_deletion" ] ); then
+                         print_info "根据跟踪信息，将尝试删除远程分支 '$remote_branch_display_name' (由于指定了 --delete-remotes)。"
+                    elif $upstream_found_and_parsed; then
+                         print_info "将尝试删除远程分支 '$remote_branch_display_name' (由于指定了 --delete-remotes)。"
+                    else # 没有上游信息，但 --delete-remotes 指定
+                         print_info "将尝试删除远程分支 '$REMOTE_NAME/$branch_to_del' (由于指定了 --delete-remotes)。"
+                    fi
+                else # 如果是 gw rm <branch> (没有 --delete-remotes)
+                    local confirm_remote_delete_msg="是否同时删除远程分支 '$remote_branch_display_name'？"
+                    if $upstream_found_and_parsed && ( [ "$branch_to_del" != "$actual_remote_branch_for_deletion" ] || [ "$REMOTE_NAME" != "$actual_remote_for_deletion" ] ); then
+                         # 表明上游与默认猜测不同
+                        confirm_remote_delete_msg="本地分支 '$branch_to_del' 跟踪 '$remote_branch_display_name'。是否删除该远程分支？"
+                    elif ! $upstream_found_and_parsed; then
+                        # 没有上游，提示删除默认远程的同名分支
+                        confirm_remote_delete_msg="是否同时删除远程分支 '$REMOTE_NAME/$branch_to_del'？"
+                    fi
+                    # 如果 $upstream_found_and_parsed is true AND 远程与本地同名且与默认远程同名，则confirm_remote_delete_msg保持默认
+                    
+                    if confirm_action "$confirm_remote_delete_msg" "N"; then
                         should_delete_this_remote=true
                     fi
                 fi
 
                 if $should_delete_this_remote; then
-                    print_step "正在删除远程分支 '$actual_remote_name_for_single_delete/$branch_to_del'..."
-                    if git push "$actual_remote_name_for_single_delete" --delete "$branch_to_del"; then
-                        print_success "成功删除远程分支 '$actual_remote_name_for_single_delete/$branch_to_del'"
+                    print_step "正在删除远程分支 '$remote_branch_display_name'..."
+                    if git push "$actual_remote_for_deletion" --delete "$actual_remote_branch_for_deletion"; then
+                        print_success "成功删除远程分支 '$remote_branch_display_name'"
                     else
-                        print_error "删除远程分支 '$actual_remote_name_for_single_delete/$branch_to_del' 失败。"
+                        print_error "删除远程分支 '$remote_branch_display_name' 失败。"
+                        # 即使远程删除失败，本地也已删除，所以整体结果可能是部分成功
+                        # 可以考虑返回一个特定错误码或信息
                     fi
+                fi
+            elif $delete_all_remotes_too; then # 如果 --delete-remotes 指定了，但目标远程分支未找到
+                if $upstream_found_and_parsed; then
+                    print_info "选项 --delete-remotes 已指定，但未找到要删除的已跟踪远程分支 '$remote_branch_display_name'。"
+                else
+                    print_info "选项 --delete-remotes 已指定，但未找到要删除的远程分支 '$REMOTE_NAME/$branch_to_del'。"
                 fi
             fi
             return 0

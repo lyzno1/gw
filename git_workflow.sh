@@ -53,6 +53,8 @@ declare -a action_files=(
     "${SCRIPT_DIR}/actions/cmd_init.sh"
     "${SCRIPT_DIR}/actions/cmd_log.sh"
     "${SCRIPT_DIR}/actions/cmd_merge.sh"
+    "${SCRIPT_DIR}/actions/cmd_pull.sh"
+    "${SCRIPT_DIR}/actions/cmd_push.sh"
     "${SCRIPT_DIR}/actions/cmd_remote.sh"
     "${SCRIPT_DIR}/actions/cmd_rm_branch.sh"
     "${SCRIPT_DIR}/actions/cmd_reset.sh"
@@ -149,29 +151,20 @@ main() {
             LAST_COMMAND_STATUS=$?
             ;;
         push)
-            do_push_with_retry "$@"
+            cmd_push "$@"
             LAST_COMMAND_STATUS=$?
             ;;
         pull)
-            echo -e "${BLUE}准备执行 git pull (带重试)...${NC}"
-            if do_pull_with_retry "$@"; then
-                 LAST_COMMAND_STATUS=0
-            else
-                 LAST_COMMAND_STATUS=1
-            fi
+            cmd_pull "$@"
+            LAST_COMMAND_STATUS=$?
             ;;
         fetch)
             cmd_fetch "$@"
             LAST_COMMAND_STATUS=$?
             ;;
         sync)
-             if [ $# -gt 0 ]; then
-                echo -e "${RED}错误: 'sync' 命令不接受参数。${NC}"
-                LAST_COMMAND_STATUS=1
-             else
-                cmd_sync
-                LAST_COMMAND_STATUS=$?
-             fi
+             cmd_sync
+             LAST_COMMAND_STATUS=$?
              ;;
         branch)
             case "$1" in

@@ -20,9 +20,9 @@ cmd_sync() {
     local stash_needed=false
     if check_uncommitted_changes || check_untracked_files; then
         echo -e "${YELLOW}检测到未提交的变更或未追踪的文件。${NC}"
-        echo "在同步操作前，建议先处理这些变更。"
-        echo "1) ${GREEN}暂存 (Stash) 变更并在同步后尝试恢复${NC}"
-        echo "2) ${RED}取消同步操作${NC}" # 移除了 "提交变更" 选项，因为提交应由 save/commit 命令处理
+        echo -e "在同步操作前，建议先处理这些变更。"
+        echo -e "1) ${GREEN}暂存 (Stash) 变更并在同步后尝试恢复${NC}"
+        echo -e "2) ${RED}取消同步操作${NC}" # 移除了 "提交变更" 选项，因为提交应由 save/commit 命令处理
         local choice_stash
         read -r -p "请选择操作 [1-2]: " choice_stash
         

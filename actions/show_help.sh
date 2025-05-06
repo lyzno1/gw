@@ -15,6 +15,7 @@ show_help() {
     echo "  init [...]              - 初始化当前目录为 Git 仓库 (可附加 git init 参数)。"
     echo "  config <user> <email>   - 快速设置本地仓库的 user.name 和 user.email。"
     echo "  config [...]            - 执行原生 git config 命令 (例如: gw config --global user.name ...)。"
+    echo "  config set remote.default <name> - 设置 \`gw\` 脚本默认使用的远程仓库名称 (会修改脚本配置文件)。"
     echo "  remote [...]            - 管理远程仓库 (原生 git remote 包装器, 例如: gw remote add origin <url>)。"
     echo "  gh-create [repo] [--public|--private] [-d \"desc\"] [-r <remote>] [--no-push]"
     echo "                            - 在 GitHub 创建仓库并关联。详情如下:"

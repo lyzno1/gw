@@ -1,6 +1,6 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+# `gw` (Git Workflow) v3.0：告别繁琐，拥抱流畅——您的智能 Git 工作流引擎
 
-***`gw` (Git Workflow) v3.0：告别繁琐，拥抱流畅——您的智能 Git 工作流引擎***
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **您是否还在经历这些 Git "痛点"？**
 
@@ -131,17 +131,15 @@ Gw 提供了一系列精心设计的命令来覆盖您开发周期的方方面�
 ### 其他
 *   `gw help`: 显示详细的帮助信息。
 
-## 🛠️ 安装与使用
+## ��️ 安装与使用
 
-1.  **克隆仓库或下载脚本**:
+1.  **克隆仓库并进入目录**:
     ```bash
     git clone https://github.com/lyzno1/gw.git
-    cd gw/脚本 
-    # 注意：如果您的项目结构中脚本确实在 'gw/脚本' 而不是 'gw_repository_directory/脚本'，请以此为准
+    cd gw 
     ```
-    或者直接下载 `git_workflow.sh` 和整个 `core_utils`、`actions` 目录到您的 `脚本` 文件夹中。
 
-2.  **给予执行权限**:
+2.  **给予执行权限** (在 `gw` 目录下执行):
     ```bash
     chmod +x git_workflow.sh
     chmod +x actions/*.sh
@@ -150,16 +148,21 @@ Gw 提供了一系列精心设计的命令来覆盖您开发周期的方方面�
     ```
 
 3.  **添加到 PATH 或创建别名 (推荐)**:
-    *   **添加到 PATH**: 将包含 `git_workflow.sh` 的 `脚本` 目录（例如 `/path/to/your/gw/脚本`）添加到您的 `$PATH` 环境变量中。
+    要使 `gw` 命令在任何地方都可用，您可以将其所在路径添加到系统的 `PATH` 环境变量中，或者为它创建一个别名。**请将下面的 `/path/to/your/gw` 替换为您本地 `gw` 仓库下 `git_workflow.sh` 目录的实际绝对路径。**
+
+    *   **添加到 PATH** (推荐用于永久可用性):
+        打开您的 shell 配置文件 (例如 `~/.bashrc`, `~/.zshrc`, 或 `~/.profile`)，并添加以下行：
         ```bash
-        # 例如，在 ~/.bashrc 或 ~/.zshrc 中添加:
-        export PATH="/path/to/your/gw/脚本:$PATH"
+        export PATH="/path/to/your/gw/git_workflow.sh:$PATH"
         ```
-    *   **创建别名**: 在您的 shell 配置文件中（如 `~/.bashrc`, `~/.zshrc`）添加一个别名：
+        保存文件后，通过运行 `source ~/.bashrc` (或相应的文件名) 或重启终端来使更改生效。
+
+    *   **创建别名** (一种简单快捷的方式):
+        同样，在您的 shell 配置文件中添加：
         ```bash
-        alias gw="/path/to/your/gw/脚本/git_workflow.sh"
+        alias gw="/path/to/your/gw/git_workflow.sh"
         ```
-    修改配置文件后，记得运行 `source ~/.bashrc` (或对应的文件) 或重启终端。
+        保存并重新加载配置或重启终端。
 
 4.  **验证安装**:
     ```bash

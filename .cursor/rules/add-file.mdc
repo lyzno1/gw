@@ -1,0 +1,54 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+### 规则名称: add-file (或更具体，如 add-new-command-action-file)
+
+**目标:** 规范向 `脚本/actions/` 目录添加新的命令实现文件 (`cmd_*.sh` 或 `gw_*.sh`) 的流程。
+
+**工作流/步骤:**
+
+1.  **创建文件:**
+    *   在 `脚本/actions/` 目录下创建新的 `.sh` 文件，例如 `cmd_newfeature.sh`。
+    *   文件头部添加 `#!/bin/bash`。
+    *   添加标准的头部注释块。
+
+2.  **头部注释块规范:**
+    *   第一行：`# 脚本/actions/cmd_newfeature.sh` (实际路径)
+    *   空一行。
+    *   简要说明此文件的用途/实现的命令，例如：`# 实现 'newfeature' 命令逻辑。`
+    *   列出主要依赖的模块（其他需要被 `source` 的文件），例如：
+        ```bash
+        # 依赖:
+        # - core_utils/colors.sh (颜色定义)
+        # - core_utils/utils_print.sh (打印函数)
+        # - core_utils/utils.sh (通用工具函数)
+        # - core_utils/config_vars.sh (配置变量)
+        # (如果依赖其他 action 文件，也应列出)
+        ```
+    *   空一行。
+3.  **函数定义:**
+    *   定义主命令函数，例如 `cmd_newfeature() { ... }`。
+    *   函数内部逻辑的第一步通常是 `if ! check_in_git_repo; then return 1; fi` (如果适用)。
+    *   清晰地处理参数。
+    *   使用 `print_step`, `print_info`, `print_success`, `print_warning`, `print_error` 进行用户交互和状态反馈。
+    *   确保所有路径拼接都考虑到 `SCRIPT_DIR` 或其他可靠的相对/绝对路径。
+    *   注释非显而易见的逻辑部分。
+
+4.  **更新 `git_workflow.sh`:**
+    *   将新创建的 `actions/cmd_newfeature.sh` 文件路径添加到 `action_files` 数组中。
+    *   在 `main()` 函数的 `case` 语句中为新命令添加一个分支，调用 `cmd_newfeature "$@"` 并设置 `LAST_COMMAND_STATUS=$?`。
+
+5.  **更新 `actions/show_help.sh`:**
+    *   在帮助信息中为新命令添加条目，说明其用法和参数。
+
+**通用注释指南:**
+
+*   **文件级注释**: 如上所述，在文件头部说明用途和主要依赖。
+*   **函数级注释**: 在函数定义上方，用一两句话说明函数的功能、主要参数（如果复杂）和返回值（如果重要）。
+    ```bash
+    # 简要说明函数功能
+    # @param $1 参数1说明
+    # @param $2 参数2说明 (如果参数复杂或不明显)
+    # @return 0 表示成功，1 表示失败 (或具体返回值)

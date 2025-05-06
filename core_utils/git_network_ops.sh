@@ -9,7 +9,7 @@
 # 执行带重试的 Git 推送
 do_push_with_retry() {
     local push_args=()
-    local remote="$REMOTE_NAME"
+    local remote_to_check="$REMOTE_NAME" # 默认为配置的远程
     local branch_to_push=""
     local current_branch
     current_branch=$(get_current_branch_name)
@@ -18,22 +18,24 @@ do_push_with_retry() {
     # --- 前置检查：未提交的变更 ---
     if check_uncommitted_changes || check_untracked_files; then
         echo -e "${YELLOW}检测到未提交的变更或未追踪的文件。${NC}"
-        # 列出具体文件
         echo "变更详情:"
         git status -s
         echo ""
+        # 确保 cmd_add_all 和 cmd_commit 可用
+        if ! command -v cmd_add_all >/dev/null 2>&1 || ! command -v cmd_commit >/dev/null 2>&1; then
+            print_error "cmd_add_all 或 cmd_commit 命令未找到。请先处理变更或确保脚本完整。"
+            return 1
+        fi
         if confirm_action "是否要将所有变更添加到暂存区并提交，然后再推送？"; then
             echo -e "${BLUE}正在暂存所有变更...${NC}"
-            # 注意：这里假设 cmd_add_all 和 cmd_commit 仍然在主脚本中或将被正确加载
-            # 在完全模块化后，可能需要通过主脚本调用或将它们也移到合适模块
-            if ! cmd_add_all; then # 依赖主脚本中的 cmd_add_all
-                echo -e "${RED}暂存变更失败，推送已取消。${NC}"
+            if ! cmd_add_all; then
+                print_error "暂存变更失败，推送已取消。"
                 return 1
             fi
             
             echo -e "${BLUE}正在提交变更...${NC}"
-            if ! cmd_commit; then # 依赖主脚本中的 cmd_commit
-                echo -e "${RED}提交失败或被取消，推送已取消。${NC}"
+            if ! cmd_commit; then
+                print_error "提交失败或被取消，推送已取消。"
                 return 1
             fi
             echo -e "${GREEN}变更已提交，继续推送...${NC}"
@@ -51,6 +53,7 @@ do_push_with_retry() {
     local potential_branch=""
     local set_upstream=false
 
+    # 解析参数以确定实际的远程和分支
     for (( i=0; i<$arg_count; i++ )); do
         local arg="${args_array[i]}"
         case "$arg" in
@@ -58,43 +61,98 @@ do_push_with_retry() {
                 set_upstream=true
                 other_args+=("$arg")
                 ;;
-            -f|--force|--force-with-lease)
+            -f|--force|--force-with-lease|--tags|--all|--prune|--mirror|--delete|--thin|--receive-pack=*|--repository=*|--gpg-sign*)
                 other_args+=("$arg")
                 ;;
-            -*)
+            # 考虑一个更通用的方式来捕获所有以 '-' 开头的选项
+            # 或者明确列出所有 git push 支持的选项
+            --dry-run|--porcelain|--progress|--quiet|--verbose|--ipv4|--ipv6|--atomic|--follow-tags|--no-signed|--no-verify|--signed|--verify)
+                other_args+=("$arg")
+                ;;
+            -*) # 捕获其他短选项或组合选项
+                # 注意：这可能不够完美，复杂的选项组合可能需要更高级的解析
                 other_args+=("$arg") 
                 ;;
-            *)
+            *) # 非选项参数
                 if [ -z "$potential_remote" ]; then
-                    if git remote | grep -q "^$arg$"; then
+                    # 第一个非选项参数，尝试判断它是远程还是分支
+                    # 如果它匹配已知的远程名，则认为是远程
+                    if git remote | grep -qw "^$arg$"; then
                         potential_remote="$arg"
+                    # 否则，如果还没确定分支，就认为是分支
                     elif [ -z "$potential_branch" ]; then 
                         potential_branch="$arg"
+                    # 如果远程和分支都已暂定，则认为是其他参数（例如 refspec）
                     else 
-                        other_args+=("$arg")
+                        other_args+=("$arg") # 或将其视为 refspec 的一部分
                     fi
                 elif [ -z "$potential_branch" ]; then
+                    # 第二个非选项参数，认为是分支（或 refspec 的一部分）
                     potential_branch="$arg"
                 else
+                    # 更多的非选项参数，通常是 refspecs
                     other_args+=("$arg") 
                 fi
                 ;;
         esac
     done
 
-    remote=${potential_remote:-$REMOTE_NAME} 
+    remote_to_check=${potential_remote:-$REMOTE_NAME} 
     branch_to_push=${potential_branch:-$current_branch} 
 
-    push_args=("$remote" "$branch_to_push")
-    push_args+=("${other_args[@]}") 
+    # --- 新增：检查远程仓库是否存在且有 URL ---
+    if ! git remote get-url "$remote_to_check" > /dev/null 2>&1; then
+        print_error "远程仓库 '$remote_to_check' 未配置或没有有效的 URL。"
+        echo -e "${CYAN}请使用 'gw remote add $remote_to_check <URL>' 或 'git remote add $remote_to_check <URL>' 添加远程仓库后再试。${NC}"
+        return 1
+    fi
+    # --- 远程检查结束 ---
 
-    if ! git rev-parse --verify --quiet "refs/remotes/$remote/$current_branch" > /dev/null 2>&1 && \
-       [ "$branch_to_push" == "$current_branch" ] && \
-       ! $set_upstream; then
-        if ! printf '%s\n' "${other_args[@]}" | grep -q -e '-u' -e '--set-upstream'; then
-           echo -e "${BLUE}检测到是首次推送分支 '$current_branch' 到 '$remote'，将自动设置上游跟踪 (-u)。${NC}"
-           push_args+=("--set-upstream")
-        fi
+    push_args=("$remote_to_check") # 始终先添加远程
+
+    # 如果 branch_to_push 包含 ':' (refspec)，则直接使用
+    if [[ "$branch_to_push" == *":"* ]]; then
+        push_args+=("$branch_to_push")
+    else
+        # 否则，如果 branch_to_push 非空，则添加它
+        # 这也处理了用户可能只提供远程名的情况，此时 branch_to_push 会是当前分支
+        [ -n "$branch_to_push" ] && push_args+=("$branch_to_push")
+    fi
+    
+    push_args+=("${other_args[@]}")
+
+
+    # 自动设置上游逻辑：仅当没有显式提供 -u，且推送目标是当前分支，且当前分支在指定远程上没有跟踪信息时
+    local remote_for_upstream_check="$remote_to_check" # 使用实际确定的远程
+    
+    # 检查上游前，确保 branch_to_push 是一个单纯的分支名，而不是 refspec
+    local simple_branch_to_push="$branch_to_push"
+    if [[ "$simple_branch_to_push" == *":"* ]]; then
+        simple_branch_to_push="$current_branch" # 如果是 refspec，以上游检查基于当前分支
+    fi
+
+    if [ "$simple_branch_to_push" == "$current_branch" ] && ! $set_upstream; then
+      # 使用 git rev-parse --symbolic-full-name @{u} 更可靠地检查上游
+      # 或者检查 git branch -vv 是否包含 [remote/branch]
+      # 为了简化，我们这里保持之前的逻辑，但可以改进
+      # 检查远程分支是否存在：git ls-remote --exit-code --heads $remote_for_upstream_check $current_branch
+      # 如果上面的命令 exit code 2，表示远程分支不存在
+      if ! git ls-remote --exit-code --heads "$remote_for_upstream_check" "$current_branch" > /dev/null 2>&1; then
+          if ! printf '%s\\n' "${push_args[@]}" | grep -q -e '-u' -e '--set-upstream'; then
+             echo -e "${BLUE}检测到分支 '$current_branch' 在远程 '$remote_for_upstream_check' 上可能尚不存在或未跟踪。将自动添加 --set-upstream (-u)。${NC}"
+             # 确保 -u 不重复添加
+             local u_already_present=false
+             for arg_in_push in "${push_args[@]}"; do
+                 if [[ "$arg_in_push" == "-u" || "$arg_in_push" == "--set-upstream" ]]; then
+                     u_already_present=true
+                     break
+                 fi
+             done
+             if ! $u_already_present; then
+                push_args+=("--set-upstream")
+             fi
+          fi
+      fi
     fi
     
     local command_str="git push ${push_args[*]}"

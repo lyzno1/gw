@@ -47,12 +47,14 @@ gw_new() {
         fi
     else
         parsed_args=$(getopt -o l --long local,base: -n 'gw new' -- "$@")
+        echo "DEBUG: parsed_args before eval: [$parsed_args]" # DEBUG LINE
         if [ $? != 0 ]; then
             # show_help # getopt 错误时显示帮助
             echo "用法: gw new <new_branch_name> [--local] [--base <base_branch>]"
             return 1
         fi 
         eval set -- "$parsed_args"
+        echo "DEBUG: \$@ after eval: [$@]" # DEBUG LINE
         while true; do
             case "$1" in
                 --local|-l)

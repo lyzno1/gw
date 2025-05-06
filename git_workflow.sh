@@ -38,33 +38,15 @@ declare -a core_files=(
     "${SCRIPT_DIR}/core_utils/git_network_ops.sh"
 )
 
+shopt -s nullglob
 declare -a action_files=(
-    "${SCRIPT_DIR}/actions/cmd_add.sh"
-    "${SCRIPT_DIR}/actions/cmd_add_all.sh"
-    "${SCRIPT_DIR}/actions/cmd_branches.sh"
-    "${SCRIPT_DIR}/actions/cmd_checkout.sh"
-    "${SCRIPT_DIR}/actions/cmd_clean_branch.sh"
-    "${SCRIPT_DIR}/actions/cmd_commit.sh"
-    "${SCRIPT_DIR}/actions/cmd_config.sh"
-    "${SCRIPT_DIR}/actions/cmd_delete_branch.sh"
-    "${SCRIPT_DIR}/actions/cmd_diff.sh"
-    "${SCRIPT_DIR}/actions/cmd_fetch.sh"
-    "${SCRIPT_DIR}/actions/cmd_finish.sh"
-    "${SCRIPT_DIR}/actions/cmd_gh_create.sh"
-    "${SCRIPT_DIR}/actions/cmd_init.sh"
-    "${SCRIPT_DIR}/actions/cmd_log.sh"
-    "${SCRIPT_DIR}/actions/cmd_merge.sh"
-    "${SCRIPT_DIR}/actions/cmd_pull.sh"
-    "${SCRIPT_DIR}/actions/cmd_push.sh"
-    "${SCRIPT_DIR}/actions/cmd_remote.sh"
-    "${SCRIPT_DIR}/actions/cmd_rm_branch.sh"
-    "${SCRIPT_DIR}/actions/cmd_reset.sh"
-    "${SCRIPT_DIR}/actions/cmd_save.sh"
-    "${SCRIPT_DIR}/actions/cmd_status.sh"
-    "${SCRIPT_DIR}/actions/cmd_sync.sh"
-    "${SCRIPT_DIR}/actions/gw_new.sh"
-    "${SCRIPT_DIR}/actions/show_help.sh"
+    "${SCRIPT_DIR}/actions/cmd_"*.sh
+    "${SCRIPT_DIR}/actions/gw_"*.sh
 )
+if [ -f "${SCRIPT_DIR}/actions/show_help.sh" ]; then
+    action_files+=("${SCRIPT_DIR}/actions/show_help.sh")
+fi
+shopt -u nullglob
 
 # 导入核心文件
 for file in "${core_files[@]}"; do
@@ -155,6 +137,10 @@ main() {
             cmd_save "$@"
             LAST_COMMAND_STATUS=$?
             ;;
+        sp)
+            cmd_sp "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
         push)
             cmd_push "$@"
             LAST_COMMAND_STATUS=$?
@@ -172,30 +158,8 @@ main() {
              LAST_COMMAND_STATUS=$?
              ;;
         branch)
-            case "$1" in
-                 ""|-a|-r|--list|--show-current) 
-                    git branch "$@"
-                    LAST_COMMAND_STATUS=$?
-                    ;;
-                 -d|-D)
-                     local branch_to_delete="$2"
-                     if [ -z "$branch_to_delete" ]; then
-                        echo -e "${RED}错误: 请提供要删除的分支名称。${NC}"
-                        LAST_COMMAND_STATUS=1
-                     else
-                        echo -e "${BLUE}正在使用 'git branch $@' 删除分支...${NC}"
-                        git branch "$@"
-                        LAST_COMMAND_STATUS=$?
-                     fi
-                     ;;
-                 *)
-                     echo -e "${RED}错误: 未知的 'branch' 子命令或选项 '$1'。${NC}"
-                     echo "创建分支请使用 'gw new <分支名>'。"
-                     echo "删除分支请使用 'gw rm <分支名>' 或 'git branch -d/-D <分支名>'。"
-                     echo "查看分支请使用 'gw branch' 或 'git branch'。"
-                     LAST_COMMAND_STATUS=1
-                     ;;
-            esac
+            cmd_branch "$@"
+            LAST_COMMAND_STATUS=$?
             ;;
         rm)
             cmd_rm_branch "$@"

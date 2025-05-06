@@ -21,24 +21,19 @@ do_push_with_retry() {
         echo "变更详情:"
         git status -s
         echo ""
-        # 确保 cmd_add_all 和 cmd_commit 可用
-        if ! command -v cmd_add_all >/dev/null 2>&1 || ! command -v cmd_commit >/dev/null 2>&1; then
-            print_error "cmd_add_all 或 cmd_commit 命令未找到。请先处理变更或确保脚本完整。"
+        # 确保 cmd_save 可用
+        if ! command -v cmd_save >/dev/null 2>&1; then
+            print_error "cmd_save 命令未找到。请先处理变更或确保脚本完整。"
             return 1
         fi
-        if confirm_action "是否要将所有变更添加到暂存区并提交，然后再推送？"; then
-            echo -e "${BLUE}正在暂存所有变更...${NC}"
-            if ! cmd_add_all; then
-                print_error "暂存变更失败，推送已取消。"
+        if confirm_action "是否要保存 (暂存并提交) 这些变更，然后再推送？"; then
+            echo -e "${BLUE}启动 'gw save' 来处理变更...${NC}"
+            if ! cmd_save; then # 调用 cmd_save，让用户走标准保存流程
+                print_error "变更保存失败或被取消，推送已取消。"
                 return 1
             fi
-            
-            echo -e "${BLUE}正在提交变更...${NC}"
-            if ! cmd_commit; then
-                print_error "提交失败或被取消，推送已取消。"
-                return 1
-            fi
-            echo -e "${GREEN}变更已提交，继续推送...${NC}"
+            # 假设 cmd_save 成功意味着工作区是干净的或变更已提交
+            echo -e "${GREEN}变更已通过 'gw save' 处理，继续推送...${NC}"
         else
             echo "推送已取消。请先处理未提交的变更。"
             return 1
@@ -235,13 +230,65 @@ do_pull_with_retry() {
     remote=${potential_remote:-$REMOTE_NAME} 
     if [ -n "$potential_branch" ]; then
        branch_to_pull=$potential_branch
-       pull_args=("$remote" "$branch_to_pull")
+       # pull_args=("$remote" "$branch_to_pull") # Defer adding remote and branch until after rebase logic
     else
-        pull_args=("$remote")
+        # pull_args=("$remote") # Defer adding remote until after rebase logic
+        branch_to_pull="$current_branch" # Default to current branch if not specified
     fi
-    pull_args+=("${other_args[@]}")
+    # pull_args+=("${other_args[@]}") # Defer adding other_args until after rebase logic
 
-    local command_str="git pull ${pull_args[*]}"
+    # --- 智能添加 --rebase 的逻辑 ---
+    local has_rebase_option=false
+    local has_conflicting_option=false
+    local final_pull_args=()
+
+    for arg_in_list in "${other_args[@]}"; do
+        case "$arg_in_list" in
+            --rebase*|-r) # Catches --rebase, --rebase=true, --rebase=false, --rebase=merges, etc., and -r
+                has_rebase_option=true
+                break
+                ;;
+            --no-rebase) # Explicitly no rebase
+                has_rebase_option=true # Treat as if a rebase option was specified to prevent default
+                break
+                ;;
+            --ff-only)
+                has_conflicting_option=true # ff-only is a specific strategy, don't override
+                break
+                ;;
+        esac
+    done
+
+    # 构建最终的 pull 参数
+    final_pull_args+=("$remote")
+    if [ -n "$branch_to_pull" ] && [[ ! "${other_args[*]}" =~ ($remote|$branch_to_pull) ]]; then # 避免重复添加
+        final_pull_args+=("$branch_to_pull")
+    fi
+    final_pull_args+=("${other_args[@]}")
+
+    if ! $has_rebase_option && ! $has_conflicting_option; then
+        # 如果用户没有指定 rebase 策略或 ff-only，则默认添加 --rebase
+        # 将 --rebase 添加到参数列表的合适位置 (通常在远程和分支之后，其他选项之前)
+        # 简单起见，我们可以在特定参数后添加，或者直接加在末尾，git通常能正确处理
+        # 为了安全，我们尝试插入在远程和分支之后 (如果存在)
+        local temp_args_for_rebase=()
+        local rebase_inserted=false
+        temp_args_for_rebase+=("$remote")
+        if [ -n "$branch_to_pull" ]; then temp_args_for_rebase+=("$branch_to_pull"); fi
+        temp_args_for_rebase+=("--rebase")
+        rebase_inserted=true
+        for arg_in_final in "${other_args[@]}"; do
+            # 确保不重复添加远程或分支名 (如果它们也出现在 other_args 里了)
+            if [[ "$arg_in_final" != "$remote" && "$arg_in_final" != "$branch_to_pull" ]]; then
+                 temp_args_for_rebase+=("$arg_in_final")
+            fi
+        done
+        final_pull_args=("${temp_args_for_rebase[@]}")
+        print_info "(gw) Pulling with default --rebase strategy."
+    fi
+    # --- 结束智能添加 --rebase 的逻辑 ---
+
+    local command_str="git pull ${final_pull_args[*]}"
     
     echo -e "${GREEN}--- Git 拉取重试执行 ---${NC}"
     echo "将尝试执行命令: $command_str"
@@ -254,7 +301,7 @@ do_pull_with_retry() {
     for i in $(seq 1 $MAX_ATTEMPTS)
     do
        echo "--- 第 $i/$MAX_ATTEMPTS 次尝试: 执行 '$command_str' --- "
-       git pull "${pull_args[@]}"
+       git pull "${final_pull_args[@]}"
        EXIT_CODE=$?
        if [ $EXIT_CODE -eq 0 ]; then
           echo -e "${GREEN}--- 拉取成功 (第 $i 次尝试). 操作完成. ---${NC}"

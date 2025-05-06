@@ -18,15 +18,32 @@ cmd_sync() {
     if [ $? -ne 0 ]; then return 1; fi
 
     if [ "$original_branch" = "$MAIN_BRANCH" ]; then
-        echo -e "${YELLOW}您已在主分支 ($MAIN_BRANCH)。正在尝试拉取最新代码...${NC}"
-        # 直接使用 do_pull_with_retry 保证一致性
-        if do_pull_with_retry "$REMOTE_NAME" "$MAIN_BRANCH"; then
-            echo -e "${GREEN}主分支已更新。${NC}"
-            return 0
-        else
-            echo -e "${RED}拉取主分支更新失败。${NC}"
+        print_info "您已在主分支 ($MAIN_BRANCH)。正在尝试拉取最新代码 (使用 rebase)..."
+        # 明确使用 --rebase 策略
+        if ! do_pull_with_retry --rebase "$REMOTE_NAME" "$MAIN_BRANCH"; then
+            print_error "从远程 '$REMOTE_NAME' 拉取并 rebase 主分支 '$MAIN_BRANCH' 失败。"
+            if [ "$initial_stash_needed" = true ]; then
+                print_warning "正在尝试恢复之前暂存的变更 (stash pop)..."
+                if git stash pop; then
+                    print_success "之前暂存的变更已成功恢复。"
+                else
+                    print_warning "恢复暂存失败。您可能需要手动使用 'git stash pop'。当前暂存列表:"
+                    git stash list
+                fi
+            fi
             return 1
         fi
+        print_success "主分支 '$MAIN_BRANCH' 已成功更新。"
+        if [ "$initial_stash_needed" = true ]; then
+            print_step "恢复之前暂存的变更..."
+            if ! git stash pop; then
+                print_warning "恢复暂存失败。您可能需要手动使用 'git stash pop'。当前暂存列表:"
+                git stash list
+            else
+                print_success "之前暂存的变更已成功恢复。"
+            fi
+        fi
+        return 0
     fi
 
     echo -e "${CYAN}=== 同步当前分支 ('$original_branch') ===${NC}"

@@ -124,9 +124,44 @@ cmd_finish() {
         echo -e "${GREEN}未检测到需要提交或暂存的变更。${NC}"
     fi
 
-    # 2. 推送当前分支 (使用 do_push_with_retry，它会自动处理 -u)
-    echo -e "${BLUE}准备推送当前分支 '$current_branch' 到远程 '$REMOTE_NAME'...${NC}"
-    if ! do_push_with_retry; then # 不带参数，do_push_with_retry 会自动推当前分支并设置上游
+    # --- 开始推送前的远程检查 --- 
+    local remote_to_push_to="$REMOTE_NAME" # finish 命令通常推送到默认远程
+    if ! git remote get-url "$remote_to_push_to" > /dev/null 2>&1; then
+        print_warning "默认远程仓库 '$remote_to_push_to' 似乎未配置或没有有效的URL。"
+        if confirm_action "是否希望现在添加远程仓库 '$remote_to_push_to'？"; then
+            local new_remote_url=""
+            echo -n -e "${CYAN}请输入远程仓库 '$remote_to_push_to' 的 URL: ${NC}"
+            read -r new_remote_url
+            
+            if [ -z "$new_remote_url" ]; then
+                print_error "未提供 URL，无法添加远程仓库。Finish 操作已取消。"
+                return 1
+            fi
+            
+            print_step "正在添加远程仓库: git remote add $remote_to_push_to $new_remote_url"
+            if git remote add "$remote_to_push_to" "$new_remote_url"; then
+                print_success "远程仓库 '$remote_to_push_to' 添加成功。"
+            else
+                print_error "添加远程仓库 '$remote_to_push_to' 失败。请检查错误信息或手动添加。Finish 操作已取消。"
+                return 1
+            fi
+        else
+            echo "操作已取消。请先配置远程仓库。"
+            return 1
+        fi
+    fi
+    # --- 远程检查结束 --- 
+
+    # 2. 推送当前分支 (使用 do_push_with_retry)
+    echo -e "${BLUE}准备推送当前分支 '$current_branch' 到远程 '$remote_to_push_to'...${NC}"
+    # 确保核心推送函数可用
+    if ! command -v do_push_with_retry >/dev/null 2>&1; then
+        print_error "核心函数 'do_push_with_retry' 未找到。请检查脚本完整性。"
+        return 127
+    fi
+    # cmd_finish 通常不接受 push 的额外参数，所以直接调用不带参数的 do_push_with_retry
+    # 它会自动推送当前分支到默认远程并设置上游（如果需要）
+    if ! do_push_with_retry; then 
         print_error "推送分支失败。请检查错误信息。"
         return 1
     fi

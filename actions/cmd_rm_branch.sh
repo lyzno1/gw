@@ -59,7 +59,9 @@ cmd_rm_branch() {
 
         # 获取所有不是 MAIN_BRANCH 也不是当前分支的本地分支
         # 同时检查它们是否已合并到 MAIN_BRANCH
-        mapfile -t candidate_branches < <(git branch --merged "$MAIN_BRANCH" --format="%(refname:short)" | grep -v -E "^(\* )?$MAIN_BRANCH$")
+        while IFS= read -r line; do
+            candidate_branches+=("$line")
+        done < <(git branch --merged "$MAIN_BRANCH" --format="%(refname:short)" | grep -v -E "^(\* )?$MAIN_BRANCH$")
 
         if [ ${#candidate_branches[@]} -eq 0 ]; then
             print_info "没有找到已合并到 '$MAIN_BRANCH' 的其他本地分支可供清理。"

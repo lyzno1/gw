@@ -51,7 +51,7 @@ cmd_clean_branch() {
             read -r choice
             if [ "$choice" = "1" ]; then
                  echo -e "${BLUE}正在暂存...${NC}"
-                 if ! git stash save "Auto-stash before cleaning branch $target_branch"; then
+                 if ! cmd_stash push -m "Auto-stash before cleaning branch $target_branch"; then
                      print_error "暂存失败，清理操作取消。"
                      return 1
                  fi
@@ -63,7 +63,7 @@ cmd_clean_branch() {
         fi
         if ! git checkout "$MAIN_BRANCH"; then
              print_error "切换到主分支失败。请检查工作区状态。"
-             if $stash_needed; then echo -e "${YELLOW}正在尝试恢复之前暂存的变更...${NC}"; git stash pop; fi
+             if $stash_needed; then echo -e "${YELLOW}正在尝试恢复之前暂存的变更...${NC}"; cmd_stash pop; fi
              return 1
         fi
         echo -e "${GREEN}已切换到主分支 '$MAIN_BRANCH'。${NC}"
@@ -73,7 +73,7 @@ cmd_clean_branch() {
     echo -e "${BLUE}正在从远程 '$REMOTE_NAME' 更新主分支 '$MAIN_BRANCH'...${NC}"
     if ! do_pull_with_retry "$REMOTE_NAME" "$MAIN_BRANCH"; then # 使用 do_pull_with_retry
         print_error "拉取主分支更新失败。"
-        if $stash_needed; then echo -e "${YELLOW}正在尝试恢复之前暂存的变更...${NC}"; git stash pop; fi
+        if $stash_needed; then echo -e "${YELLOW}正在尝试恢复之前暂存的变更...${NC}"; cmd_stash pop; fi
         return 1
     fi
     echo -e "${GREEN}主分支已是最新。${NC}"
@@ -91,18 +91,17 @@ cmd_clean_branch() {
         echo -e "${GREEN}分支 '$target_branch' 清理完成 (通过调用 'gw rm')。${NC}"
     else
         print_error "分支 '$target_branch' 清理过程中删除步骤失败 (调用 'gw rm' 失败)。请检查上面的错误信息。"
-        if $stash_needed; then echo -e "${YELLOW}正在尝试恢复之前暂存的变更...${NC}"; git stash pop; fi
+        if $stash_needed; then echo -e "${YELLOW}正在尝试恢复之前暂存的变更...${NC}"; cmd_stash pop; fi
         return 1
     fi
     
     # 4. 如果之前暂存了，尝试恢复
     if $stash_needed; then
         echo -e "${BLUE}正在尝试恢复之前暂存的变更...${NC}"
-        if git stash pop; then
-            echo -e "${GREEN}成功恢复暂存的变更。${NC}"
+        if cmd_stash pop; then
+            print_success "成功恢复暂存的变更。"
         else
-            print_warning "自动恢复暂存失败。可能存在冲突。请手动处理 (git stash list)。"
-            # 即使恢复失败，清理的主要步骤已完成，这里不返回错误码
+            print_warning "自动恢复暂存失败。可能存在冲突。请手动处理 (cmd_stash list)。"
         fi
     fi
 

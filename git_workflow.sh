@@ -93,11 +93,11 @@ main() {
                 # 但如果是未知的全局选项，可以考虑报错或忽略
                 # 为了简单起见，我们先假设所有其他选项都传递给命令
                 command_args+=( "$1" )
-                shift
+    shift
                 ;;
             *)
                 command_args+=( "$1" )
-                shift
+                    shift
                 ;;
         esac
     done
@@ -107,7 +107,7 @@ main() {
 
     # 允许 help, init, config --global/--system 在非 git 仓库目录执行
     local allow_outside_repo=false
-    case "$1" in
+        case "$1" in
         help|--help|-h|init)
              allow_outside_repo=true
              ;;
@@ -130,7 +130,7 @@ main() {
            # check_in_git_repo 内部会打印错误
         return 1
     fi
-    
+
     local command="$1"
     # 如果没有命令，提示使用 help
     if [ -z "$command" ]; then
@@ -281,6 +281,10 @@ main() {
             ;;
         clean)
             cmd_clean_branch "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
+        stash)
+            cmd_stash "$@"
             LAST_COMMAND_STATUS=$?
             ;;
         help|--help|-h)

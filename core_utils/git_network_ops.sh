@@ -338,7 +338,7 @@ do_pull_with_retry() {
     fi
 
     local command_str="git pull ${final_pull_args[*]}"
-
+    
     if $GW_VERBOSE; then
         print_info "(调试) 拉取参数详情: remote='$remote', branch_to_pull='$branch_to_pull', other_args='${other_args[*]}', final_pull_args='${final_pull_args[*]}'"
     fi

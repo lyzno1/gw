@@ -59,6 +59,15 @@ LAST_COMMAND_STATUS=0
 # 设置中断处理
 trap "echo -e '\n${YELLOW}脚本被用户中断，退出.${NC}'; exit 130" INT
 
+# 辅助函数：报告参数错误
+_report_arg_error() {
+    local command_name="$1"
+    local error_message="$2"
+    print_error "参数错误: ${error_message}"
+    echo -e "${CYAN}请使用 'gw help ${command_name}' 查看正确用法。${NC}"
+    LAST_COMMAND_STATUS=1 # 设置错误状态，以便主函数退出时使用
+}
+
 # 导入命令实现文件
 for file in "${action_files[@]}"; do
     import_file "$file"
@@ -165,8 +174,12 @@ main() {
             LAST_COMMAND_STATUS=$?
             ;;
         add-all)
-            cmd_add_all
-            LAST_COMMAND_STATUS=$?
+            if [ "$#" -ne 0 ]; then
+                _report_arg_error "add-all" "命令 'add-all' 不需要参数。"
+            else
+                cmd_add_all
+                LAST_COMMAND_STATUS=$?
+            fi
             ;;
         commit)
             cmd_commit "$@"
@@ -193,9 +206,13 @@ main() {
             LAST_COMMAND_STATUS=$?
             ;;
         sync)
-                cmd_sync
+            if [ "$#" -ne 0 ]; then
+                _report_arg_error "sync" "命令 'sync' 当前不需要参数。"
+            else
+                cmd_sync # cmd_sync 内部不处理参数
                 LAST_COMMAND_STATUS=$?
-             ;;
+            fi
+            ;;
         branch)
             cmd_branch "$@"
                     LAST_COMMAND_STATUS=$?
@@ -234,12 +251,10 @@ main() {
             LAST_COMMAND_STATUS=$?
             ;;
         1|first)
-            local branch_arg="$1"
-            if [ -z "$branch_arg" ]; then
-                echo -e "${RED}错误: 命令 '1' 或 'first' 需要指定分支名称。${NC}"
-                echo "用法: gw 1 <分支名> [...]"
-                LAST_COMMAND_STATUS=1
+            if [ "$#" -eq 0 ]; then
+                _report_arg_error "1" "命令 '1' (或 'first') 需要至少一个分支名参数。"
             else
+                local branch_arg="$1"
                 echo -e "${BLUE}执行首次推送 (模式 1) 分支 '$branch_arg' (带 -u)...${NC}"
                 shift
                 cmd_push "-u" "$REMOTE_NAME" "$branch_arg" "$@"
@@ -252,12 +267,10 @@ main() {
             LAST_COMMAND_STATUS=$?
             ;;
         3|other)
-            local branch_arg="$1"
-            if [ -z "$branch_arg" ]; then
-                echo -e "${RED}错误: 命令 '3' 或 'other' 需要指定分支名称。${NC}"
-                echo "用法: gw 3 <分支名> [...]"
-                LAST_COMMAND_STATUS=1
+            if [ "$#" -eq 0 ]; then
+                _report_arg_error "3" "命令 '3' (或 'other') 需要至少一个分支名参数。"
             else
+                local branch_arg="$1"
                 echo -e "${BLUE}执行推送指定分支 (模式 3) '$branch_arg'...${NC}"
                 shift
                 cmd_push "$REMOTE_NAME" "$branch_arg" "$@"
@@ -280,8 +293,12 @@ main() {
             LAST_COMMAND_STATUS=$?
             ;;
         clean)
-            cmd_clean_branch "$@"
-            LAST_COMMAND_STATUS=$?
+            if [ "$#" -ne 1 ]; then
+                _report_arg_error "clean" "命令 'clean' 需要且仅需要一个分支名参数。"
+            else
+                cmd_clean_branch "$@"
+                LAST_COMMAND_STATUS=$?
+            fi
             ;;
         stash)
             cmd_stash "$@"

@@ -16,25 +16,13 @@ cmd_branch() {
     fi
 
     if [ "$#" -eq 0 ]; then
-        # 只显示本地分支，当前分支高亮，分支名左对齐，摘要可选
-        git for-each-ref --sort=-committerdate refs/heads/ --format='%(if)%(HEAD)%(then)*%(else) %(end) %(refname:short) %(objectname:short) %(contents:subject)' |
-        awk '{
-            head=$1; name=$2; sha=$3; $1=""; $2=""; $3=""; summary=substr($0,4);
-            if(head=="*") {
-                printf("\033[1;32m* %-20s %-8s %s\033[0m\n", name, sha, summary);
-            } else {
-                printf("  %-20s %-8s %s\n", name, sha, summary);
-            }
-        }'
+        # 只显示本地分支名，当前分支高亮
+        git branch
         return 0
     fi
     if [ "$1" = "-r" ]; then
-        # 只显示远程分支，格式同上
-        git for-each-ref --sort=-committerdate refs/remotes/ --format='  %(refname:short) %(objectname:short) %(contents:subject)' |
-        awk '{
-            name=$1; sha=$2; $1=""; $2=""; summary=substr($0, length(name)+length(sha)+3);
-            printf("  %-20s %-8s %s\n", name, sha, summary);
-        }'
+        # 只显示远程分支名
+        git branch -r
         return 0
     else
         # 带参数调用：行为类似原生 git branch，但有一些增强提示

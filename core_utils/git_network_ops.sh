@@ -151,7 +151,20 @@ do_push_with_retry() {
     fi
     
     local command_str="git push ${push_args[*]}"
-    echo "执行命令: $command_str"
+    
+    if $GW_VERBOSE; then
+        print_info "(调试) 推送参数详情: remote_to_check='$remote_to_check', branch_to_push='$branch_to_push', other_args='${other_args[*]}', final_push_args='${push_args[*]}'"
+    fi
+
+    print_info "准备执行推送命令: $command_str"
+
+    if $GW_DRY_RUN; then
+        print_warning "(预演模式) 原本将执行: $command_str"
+        # 在 dry-run 模式下，我们可以模拟一个成功状态或一个特定的失败状态用于测试流程
+        # 这里我们简单返回成功，因为重试逻辑在 dry-run 下意义不大
+        print_info "(预演模式) 操作完成。"
+        return 0
+    fi
 
     # First attempt
     git push "${push_args[@]}"
@@ -325,7 +338,18 @@ do_pull_with_retry() {
     fi
 
     local command_str="git pull ${final_pull_args[*]}"
-    echo "执行命令: $command_str"
+
+    if $GW_VERBOSE; then
+        print_info "(调试) 拉取参数详情: remote='$remote', branch_to_pull='$branch_to_pull', other_args='${other_args[*]}', final_pull_args='${final_pull_args[*]}'"
+    fi
+    
+    print_info "准备执行拉取命令: $command_str"
+
+    if $GW_DRY_RUN; then
+        print_warning "(预演模式) 原本将执行: $command_str"
+        print_info "(预演模式) 操作完成。"
+        return 0
+    fi
 
     # First attempt
     git pull "${final_pull_args[@]}"
@@ -336,9 +360,31 @@ do_pull_with_retry() {
         return 0
     fi
 
-    # If we reach here, the first attempt failed. Now print retry-related info.
+    # If we reach here, the first attempt failed.
+    # Check if the failure might be due to uncommitted changes before starting full retry logic
+    if [ $EXIT_CODE -ne 0 ]; then # If first pull failed
+        # Heuristic: Check for uncommitted changes. This is a common reason for pull --rebase to fail.
+        local uncommitted_output
+        uncommitted_output=$(git status --porcelain 2>/dev/null)
+        if [ -n "$uncommitted_output" ]; then
+            # Check if output contains typical uncommitted/unstaged markers. 
+            # Porcelain status: M for modified, A for added, D for deleted, R for renamed, C for copied (all in index or worktree)
+            # ?? for untracked.  Lines with space first char are staged for commit.
+            # We are interested in changes that are NOT staged for commit or are untracked.
+            if echo "$uncommitted_output" | grep -q -E "^[ MARCUD]{1}[MCDU ]|[??]"; then
+                print_error "!!! 拉取失败 (退出码: $EXIT_CODE)。检测到本地有未提交或未暂存的更改。!!!"
+                echo -e "${YELLOW}详细状态:${NC}"
+                git status --short # Show a short status to the user
+                print_error "请先提交 (gw save) 或暂存 (git stash) 您的更改后再尝试拉取。"
+                return 1 # Exit without retry for this specific case
+            fi
+        fi
+    fi
+
+    # If not an uncommitted changes error (or check was inconclusive), proceed to general retry logic.
+    # First, check for merge conflicts specifically, as this is a common non-network pull failure.
     if git diff --name-only --diff-filter=U --relative | grep -q .; then
-        echo -e "${RED}!!! 拉取失败：检测到合并冲突 (退出码: $EXIT_CODE)。请手动解决冲突后提交。!!!${NC}"
+        print_error "!!! 拉取失败：检测到合并冲突 (退出码: $EXIT_CODE)。请手动解决冲突后提交。!!!${NC}"
         echo -e "运行 'git status' 查看冲突文件。"
         echo -e "解决后运行 'gw add <冲突文件>' 和 'gw commit'。"
         return 1 

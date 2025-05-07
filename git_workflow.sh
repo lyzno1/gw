@@ -66,6 +66,45 @@ done
 
 # 主函数
 main() {
+    # --- 全局选项解析 ---
+    GW_VERBOSE=false
+    GW_DRY_RUN=false
+    export GW_VERBOSE GW_DRY_RUN # 导出变量使其对子脚本可见
+    local command_args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --verbose|-v)
+                GW_VERBOSE=true
+                # print_info "(调试) 详细模式已启用" # 移至实际使用时打印
+                shift
+                ;;
+            --dry-run|-n)
+                GW_DRY_RUN=true
+                # print_info "(调试) 预演模式已启用 (不会执行实际更改)" # 移至实际使用时打印
+                shift
+                ;;
+            --)
+                shift
+                command_args+=( "$@" )
+                break
+                ;;
+            -*)
+                # 如果是像 -m "message" 这样的选项，它属于特定命令，这里不处理
+                # 但如果是未知的全局选项，可以考虑报错或忽略
+                # 为了简单起见，我们先假设所有其他选项都传递给命令
+                command_args+=( "$1" )
+                shift
+                ;;
+            *)
+                command_args+=( "$1" )
+                shift
+                ;;
+        esac
+    done
+    # 将解析后的参数重新放回位置参数列表，或者直接使用 command_args 数组
+    set -- "${command_args[@]}" # 重新设置位置参数，以便后续的 command=$1 和 shift 能正确工作
+    # --- 全局选项解析结束 ---
+
     # 允许 help, init, config --global/--system 在非 git 仓库目录执行
     local allow_outside_repo=false
     case "$1" in

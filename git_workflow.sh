@@ -74,24 +74,24 @@ main() {
              ;;
         config)
              # 检查是否有 --global 或 --system
-             for arg in "$@"; do
+    for arg in "$@"; do
                  if [[ "$arg" == "--global" || "$arg" == "--system" ]]; then
                      allow_outside_repo=true
-                     break
-                 fi
-             done
+            break
+        fi
+    done
              # config --list 也允许
              if [[ "$2" == "--list" || "$2" == "-l" ]]; then
                  allow_outside_repo=true
              fi
-             ;;
-    esac
+                ;;
+        esac
 
     if ! $allow_outside_repo && ! check_in_git_repo; then
            # check_in_git_repo 内部会打印错误
-           return 1
+        return 1
     fi
-
+    
     local command="$1"
     # 如果没有命令，提示使用 help
     if [ -z "$command" ]; then
@@ -154,13 +154,13 @@ main() {
             LAST_COMMAND_STATUS=$?
             ;;
         sync)
-             cmd_sync
-             LAST_COMMAND_STATUS=$?
+                cmd_sync
+                LAST_COMMAND_STATUS=$?
              ;;
         branch)
             cmd_branch "$@"
-            LAST_COMMAND_STATUS=$?
-            ;;
+                    LAST_COMMAND_STATUS=$?
+                    ;;
         rm)
             cmd_rm_branch "$@"
             LAST_COMMAND_STATUS=$?

@@ -24,8 +24,8 @@ do_push_with_retry() {
         # 确保 cmd_save 可用
         if ! command -v cmd_save >/dev/null 2>&1; then
             print_error "cmd_save 命令未找到。请先处理变更或确保脚本完整。"
-            return 1
-        fi
+                return 1
+            fi
         if confirm_action "是否要保存 (暂存并提交) 这些变更，然后再推送？"; then
             echo -e "${BLUE}启动 'gw save' 来处理变更...${NC}"
             if ! cmd_save; then # 调用 cmd_save，让用户走标准保存流程
@@ -114,7 +114,7 @@ do_push_with_retry() {
         [ -n "$branch_to_push" ] && push_args+=("$branch_to_push")
     fi
     
-    push_args+=("${other_args[@]}")
+    push_args+=("${other_args[@]}") 
 
 
     # 自动设置上游逻辑：仅当没有显式提供 -u，且推送目标是当前分支，且当前分支在指定远程上没有跟踪信息时
@@ -133,7 +133,7 @@ do_push_with_retry() {
       # 检查远程分支是否存在：git ls-remote --exit-code --heads $remote_for_upstream_check $current_branch
       # 如果上面的命令 exit code 2，表示远程分支不存在
       if ! git ls-remote --exit-code --heads "$remote_for_upstream_check" "$current_branch" > /dev/null 2>&1; then
-          if ! printf '%s\\n' "${push_args[@]}" | grep -q -e '-u' -e '--set-upstream'; then
+          if ! printf '%s\n' "${push_args[@]}" | grep -q -e '-u' -e '--set-upstream'; then
              echo -e "${BLUE}检测到分支 '$current_branch' 在远程 '$remote_for_upstream_check' 上可能尚不存在或未跟踪。将自动添加 --set-upstream (-u)。${NC}"
              # 确保 -u 不重复添加
              local u_already_present=false
@@ -144,10 +144,10 @@ do_push_with_retry() {
                  fi
              done
              if ! $u_already_present; then
-                push_args+=("--set-upstream")
+           push_args+=("--set-upstream")
              fi
           fi
-      fi
+        fi
     fi
     
     local command_str="git push ${push_args[*]}"
@@ -160,24 +160,40 @@ do_push_with_retry() {
     fi
     echo "-----------------------------------------"
 
-    for i in $(seq 1 $MAX_ATTEMPTS)
+    # First attempt
+    git push "${push_args[@]}"
+    local EXIT_CODE=$?
+
+    if [ $EXIT_CODE -eq 0 ]; then
+        echo -e "${GREEN}--- 推送成功. ---${NC}"
+        return 0
+    fi
+
+    # If we reach here, the first attempt failed. Now print retry-related info.
+    echo -e "${RED}!!! 首次推送尝试失败 (退出码: $EXIT_CODE). 开始重试... !!!${NC}"
+    echo -e "${GREEN}--- Git 推送重试执行 ---${NC}"
+    echo "最大尝试次数: $MAX_ATTEMPTS (包括首次)"
+    if [ "$DELAY_SECONDS" -gt 0 ]; then
+        echo "每次后续尝试间隔: ${DELAY_SECONDS} 秒"
+    fi
+    echo "-----------------------------------------"
+
+    for i in $(seq 2 $MAX_ATTEMPTS) # Loop from the second attempt
     do
-       echo "--- 第 $i/$MAX_ATTEMPTS 次尝试 ---"
+       if [ "$DELAY_SECONDS" -gt 0 ]; then
+           sleep $DELAY_SECONDS
+       fi
+       echo "--- 第 $i/$MAX_ATTEMPTS 次尝试 --- "
        git push "${push_args[@]}"
        EXIT_CODE=$?
        if [ $EXIT_CODE -eq 0 ]; then
           echo -e "${GREEN}--- 推送成功 (第 $i 次尝试). 操作完成. ---${NC}"
           return 0
        else
-          echo -e "${RED}!!! 第 $i 次尝试失败 (退出码: $EXIT_CODE). 正在重试... !!!${NC}"
-       fi
-
-       if [ $i -eq $MAX_ATTEMPTS ]; then
-           break
-       fi
-
-       if [ "$DELAY_SECONDS" -gt 0 ]; then
-           sleep $DELAY_SECONDS
+          echo -e "${RED}!!! 第 $i 次尝试推送失败 (退出码: $EXIT_CODE).${NC}"
+          if [ $i -lt $MAX_ATTEMPTS ]; then
+              echo -e "${YELLOW}正在重试...${NC}"
+          fi
        fi
     done
 
@@ -230,77 +246,131 @@ do_pull_with_retry() {
     remote=${potential_remote:-$REMOTE_NAME} 
     if [ -n "$potential_branch" ]; then
        branch_to_pull=$potential_branch
-       # pull_args=("$remote" "$branch_to_pull") # Defer adding remote and branch until after rebase logic
     else
-        # pull_args=("$remote") # Defer adding remote until after rebase logic
-        branch_to_pull="$current_branch" # Default to current branch if not specified
+        branch_to_pull="$current_branch"
     fi
-    # pull_args+=("${other_args[@]}") # Defer adding other_args until after rebase logic
 
-    # --- 智能添加 --rebase 的逻辑 ---
     local has_rebase_option=false
     local has_conflicting_option=false
     local final_pull_args=()
 
     for arg_in_list in "${other_args[@]}"; do
         case "$arg_in_list" in
-            --rebase*|-r) # Catches --rebase, --rebase=true, --rebase=false, --rebase=merges, etc., and -r
+            --rebase*|-r)
                 has_rebase_option=true
                 break
                 ;;
-            --no-rebase) # Explicitly no rebase
-                has_rebase_option=true # Treat as if a rebase option was specified to prevent default
+            --no-rebase)
+                has_rebase_option=true 
                 break
                 ;;
             --ff-only)
-                has_conflicting_option=true # ff-only is a specific strategy, don't override
+                has_conflicting_option=true
                 break
                 ;;
         esac
     done
 
-    # 构建最终的 pull 参数
     final_pull_args+=("$remote")
-    if [ -n "$branch_to_pull" ] && [[ ! "${other_args[*]}" =~ ($remote|$branch_to_pull) ]]; then # 避免重复添加
-        final_pull_args+=("$branch_to_pull")
+    if [ -n "$branch_to_pull" ] && [[ ! " ${other_args[*]} " =~ " $branch_to_pull " ]]; then # Check if branch_to_pull is already in other_args
+      if [[ ! " ${other_args[*]} " =~ " $remote " && "$branch_to_pull" != "$remote" ]]; then # Avoid adding branch if it's same as remote and remote is already there
+          final_pull_args+=("$branch_to_pull")
+      fi
+    elif [ -z "$branch_to_pull" ] && [ -n "$current_branch" ] && [[ ! " ${other_args[*]} " =~ " $current_branch " ]]; then # if branch_to_pull was empty, use current_branch
+         if [[ ! " ${other_args[*]} " =~ " $remote " && "$current_branch" != "$remote" ]]; then
+            final_pull_args+=("$current_branch")
+         fi
     fi
-    final_pull_args+=("${other_args[@]}")
+
+    # Add other_args, ensuring remote and branch are not duplicated if they were already part of other_args by some chance
+    for arg_val in "${other_args[@]}"; do
+        is_duplicate=false
+        for existing_arg in "${final_pull_args[@]}"; do 
+            if [[ "$existing_arg" == "$arg_val" ]]; then 
+                is_duplicate=true; 
+                break; 
+            fi; 
+        done
+        if ! $is_duplicate; then final_pull_args+=("$arg_val"); fi
+    done
 
     if ! $has_rebase_option && ! $has_conflicting_option; then
-        # 如果用户没有指定 rebase 策略或 ff-only，则默认添加 --rebase
-        # 将 --rebase 添加到参数列表的合适位置 (通常在远程和分支之后，其他选项之前)
-        # 简单起见，我们可以在特定参数后添加，或者直接加在末尾，git通常能正确处理
-        # 为了安全，我们尝试插入在远程和分支之后 (如果存在)
         local temp_args_for_rebase=()
-        local rebase_inserted=false
-        temp_args_for_rebase+=("$remote")
-        if [ -n "$branch_to_pull" ]; then temp_args_for_rebase+=("$branch_to_pull"); fi
-        temp_args_for_rebase+=("--rebase")
-        rebase_inserted=true
-        for arg_in_final in "${other_args[@]}"; do
-            # 确保不重复添加远程或分支名 (如果它们也出现在 other_args 里了)
-            if [[ "$arg_in_final" != "$remote" && "$arg_in_final" != "$branch_to_pull" ]]; then
-                 temp_args_for_rebase+=("$arg_in_final")
+        local rebase_inserted_correctly=false
+        # Try to insert --rebase after remote and branch, if they exist
+        # This logic is a bit complex due to the flexible nature of git pull arguments
+        idx=0
+        for arg_val in "${final_pull_args[@]}"; do
+            temp_args_for_rebase+=("$arg_val")
+            ((idx++))
+            if [[ "$arg_val" == "$remote" ]] || [[ -n "$branch_to_pull" && "$arg_val" == "$branch_to_pull" ]] || [[ -z "$branch_to_pull" && -n "$current_branch" && "$arg_val" == "$current_branch" ]]; then
+                 # If it's the remote, or the specified/current branch, check if it's the last of them
+                 # This is heuristic. A truly robust parser for git args is very complex.
+                 is_last_remote_branch=true
+                 if (( idx < ${#final_pull_args[@]} )); then
+                     next_arg="${final_pull_args[idx]}"
+                     if [[ ! "$next_arg" == --* ]]; then # if next arg is not an option, it might be another branch/remote part
+                         is_last_remote_branch=false
+                     fi
+                 fi
+                 if $is_last_remote_branch && ! $rebase_inserted_correctly ; then
+                    if ! printf '%s\n' "${final_pull_args[@]}" | grep -q -e '--rebase' -e '-r'; then # Check again if rebase somehow got in
+                        temp_args_for_rebase+=("--rebase")
+                        rebase_inserted_correctly=true
+                    fi
+                 fi 
             fi
         done
-        final_pull_args=("${temp_args_for_rebase[@]}")
+        if ! $rebase_inserted_correctly; then # If not inserted, add at the end (safer default)
+             if ! printf '%s\n' "${final_pull_args[@]}" | grep -q -e '--rebase' -e '-r'; then
+                final_pull_args+=("--rebase")
+             fi
+        else
+            final_pull_args=("${temp_args_for_rebase[@]}")
+        fi
         print_info "(gw) Pulling with default --rebase strategy."
     fi
-    # --- 结束智能添加 --rebase 的逻辑 ---
 
     local command_str="git pull ${final_pull_args[*]}"
     
     echo -e "${GREEN}--- Git 拉取重试执行 ---${NC}"
-    echo "将尝试执行命令: $command_str"
+    echo "执行命令: $command_str"
     echo "最大尝试次数: $MAX_ATTEMPTS"
     if [ "$DELAY_SECONDS" -gt 0 ]; then
         echo "每次尝试间隔: ${DELAY_SECONDS} 秒"
     fi
     echo "-----------------------------------------"
 
-    for i in $(seq 1 $MAX_ATTEMPTS)
+    # First attempt
+    git pull "${final_pull_args[@]}"
+    local EXIT_CODE=$?
+
+    if [ $EXIT_CODE -eq 0 ]; then
+        echo -e "${GREEN}--- 拉取成功. ---${NC}"
+        return 0
+    fi
+
+    # If we reach here, the first attempt failed. Now print retry-related info.
+    if git diff --name-only --diff-filter=U --relative | grep -q .; then
+        echo -e "${RED}!!! 拉取失败：检测到合并冲突 (退出码: $EXIT_CODE)。请手动解决冲突后提交。!!!${NC}"
+        echo -e "运行 'git status' 查看冲突文件。"
+        echo -e "解决后运行 'gw add <冲突文件>' 和 'gw commit'。"
+        return 1 
+    fi
+    echo -e "${RED}!!! 首次拉取尝试失败 (退出码: $EXIT_CODE). 开始重试... !!!${NC}"
+    echo -e "${GREEN}--- Git 拉取重试执行 ---${NC}"
+    echo "最大尝试次数: $MAX_ATTEMPTS (包括首次)"
+    if [ "$DELAY_SECONDS" -gt 0 ]; then
+        echo "每次后续尝试间隔: ${DELAY_SECONDS} 秒"
+    fi
+    echo "-----------------------------------------"
+
+    for i in $(seq 2 $MAX_ATTEMPTS) # Loop from the second attempt
     do
-       echo "--- 第 $i/$MAX_ATTEMPTS 次尝试: 执行 '$command_str' --- "
+       if [ "$DELAY_SECONDS" -gt 0 ]; then
+           sleep $DELAY_SECONDS
+       fi
+       echo "--- 第 $i/$MAX_ATTEMPTS 次尝试 --- "
        git pull "${final_pull_args[@]}"
        EXIT_CODE=$?
        if [ $EXIT_CODE -eq 0 ]; then
@@ -313,15 +383,10 @@ do_pull_with_retry() {
               echo -e "解决后运行 'gw add <冲突文件>' 和 'gw commit'。"
               return 1 
           fi
-          echo -e "${RED}!!! 第 $i 次尝试拉取失败 (退出码: $EXIT_CODE)。可能是网络问题，正在重试... !!!${NC}"
-       fi
-
-       if [ $i -eq $MAX_ATTEMPTS ]; then
-           break
-       fi
-
-       if [ "$DELAY_SECONDS" -gt 0 ]; then
-           sleep $DELAY_SECONDS
+          echo -e "${RED}!!! 第 $i 次尝试拉取失败 (退出码: $EXIT_CODE).${NC}"
+          if [ $i -lt $MAX_ATTEMPTS ]; then
+              echo -e "${YELLOW}正在重试...${NC}"
+          fi       
        fi
     done
 

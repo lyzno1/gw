@@ -51,7 +51,7 @@ cmd_clean_branch() {
             read -r choice
             if [ "$choice" = "1" ]; then
                  echo -e "${BLUE}正在暂存...${NC}"
-                 if ! cmd_stash push -m "Auto-stash before cleaning branch $target_branch"; then
+                 if ! cmd_stash push -m "在清理分支 $target_branch 前自动暂存"; then
                      print_error "暂存失败，清理操作取消。"
                      return 1
                  fi

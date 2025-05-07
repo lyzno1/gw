@@ -28,7 +28,7 @@ cmd_sync() {
         case "$choice_stash" in
             1)
                 print_step "正在暂存当前变更 (cmd_stash push)..."
-                if cmd_stash push -m "Auto-stash before sync on $original_branch"; then
+                if cmd_stash push -m "在同步 $original_branch 前自动暂存"; then
                     stash_needed=true
                 else
                     print_error "stash 保存失败，同步已取消。"

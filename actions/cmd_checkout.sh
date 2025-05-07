@@ -53,7 +53,7 @@ cmd_checkout() {
             2)
                 # 暂存变更
                 echo -e "${BLUE}正在暂存当前变更...${NC}"
-                if ! cmd_stash push -m "Auto-stashed before checkout to $branch"; then
+                if ! cmd_stash push -m "在清理分支 $target_branch 前自动暂存"; then
                     echo -e "${RED}暂存变更失败，请检查操作。${NC}"
                     return 1
                 fi

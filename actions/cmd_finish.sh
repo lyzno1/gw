@@ -102,7 +102,7 @@ cmd_finish() {
                 ;;
             2)
                 echo -e "${BLUE}正在暂存变更...${NC}"
-                if cmd_stash push -m "Stashed before finishing branch $current_branch"; then
+                if cmd_stash push -m "在完成分支 $current_branch 前自动暂存"; then
                     print_warning "变更已暂存，不会包含在本次推送和 PR 中。"
                 else
                     print_error "暂存失败，操作已取消。"

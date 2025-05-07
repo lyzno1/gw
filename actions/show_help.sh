@@ -26,7 +26,7 @@ show_help() {
     echo "                              --no-push: 创建后不执行初始推送 (默认: 推送当前分支)。"
     echo ""
     echo -e "${CYAN}⭐ 核心工作流命令 ⭐${NC}"
-    printf "${YELLOW}  gw new <branch_name> [--local] [--base <base_branch>]${NC} (默认基础分支: ${MAIN_BRANCH})\n"
+    printf "${YELLOW}  new <branch_name> [--local] [--base <base_branch>]${NC} (默认基础分支: ${MAIN_BRANCH})\n"
     printf "    从基础分支创建并切换到一个新的开发分支。\n"
     printf "    ${GRAY}(如果当前有未提交的更改，会提示您暂存后再继续。)${NC}\n"
     printf "    ${CYAN}--local${NC}            - 基于本地的基础分支状态创建，跳过自动拉取最新代码。\n"

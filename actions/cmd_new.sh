@@ -11,10 +11,10 @@
 # - help.sh (show_help - 如果解析参数失败)
 
 # 创建并切换到新分支
-gw_new() {
+cmd_new() {
     if ! check_in_git_repo; then return 1; fi
 
-    local changes_were_stashed_by_gw_new=false
+    local changes_were_stashed_by_cmd_new=false
     if check_uncommitted_changes || check_untracked_files; then
         print_warning "检测到未提交的变更或未追踪的文件。"
         echo "变更详情:"
@@ -22,7 +22,7 @@ gw_new() {
         echo ""
         echo -e "${YELLOW}在创建新分支前，建议处理这些变更:${NC}"
         echo -e "1) ${GREEN}暂存 (Stash) 当前变更并继续${NC}"
-        echo -e "2) ${RED}取消 'gw new' 操作${NC}"
+        echo -e "2) ${RED}取消 'cmd new' 操作${NC}"
         local choice_stash
         read -r -p "请选择操作 [1-2]: " choice_stash
 
@@ -31,17 +31,17 @@ gw_new() {
                 local stash_branch_name
                 stash_branch_name=$(get_current_branch_name)
                 if [ -z "$stash_branch_name" ]; then stash_branch_name="unknown_branch"; fi
-                print_step "正在暂存当前变更 (git stash save 'WIP on $stash_branch_name before gw new')..."
-                if git stash save "WIP on $stash_branch_name before gw new"; then
+                print_step "正在暂存当前变更 (git stash save 'WIP on $stash_branch_name before cmd new')..."
+                if git stash save "WIP on $stash_branch_name before cmd new"; then
                     print_success "变更已成功暂存。"
-                    changes_were_stashed_by_gw_new=true
+                    changes_were_stashed_by_cmd_new=true
                 else
-                    print_error "暂存变更失败。'gw new' 操作已取消。"
+                    print_error "暂存变更失败。'cmd new' 操作已取消。"
                     return 1
                 fi
                 ;;
             2|*)
-                echo "'gw new' 操作已取消。"
+                echo "'cmd new' 操作已取消。"
                 return 1
                 ;;
         esac
@@ -63,9 +63,9 @@ gw_new() {
 
     if $use_gnu_getopt; then
         # GNU getopt 逻辑
-        parsed_args=$(getopt -o l --long local,base: -n 'gw new' -- "$@")
+        parsed_args=$(getopt -o l --long local,base: -n 'cmd new' -- "$@")
         if [ $? != 0 ]; then
-            echo "用法: gw new <new_branch_name> [--local] [--base <base_branch>]"
+            echo "用法: cmd new <new_branch_name> [--local] [--base <base_branch>]"
             return 1
         fi
         eval set -- "$parsed_args"
@@ -90,7 +90,7 @@ gw_new() {
         done
         if [ -z "$1" ]; then
             print_error "错误：需要提供新分支名称。"
-            echo "用法: gw new <new_branch_name> [--local] [--base <base_branch>]"
+            echo "用法: cmd new <new_branch_name> [--local] [--base <base_branch>]"
             return 1
         fi
         new_branch_name="$1"
@@ -107,14 +107,14 @@ gw_new() {
     else
         # getopt 未找到或非 GNU getopt，使用基础参数解析
         if command -v getopt >/dev/null 2>&1; then
-             print_warning "检测到非 GNU getopt，将使用基础参数解析。长选项如 --base 可能不受支持或需按 'gw new <branch> [base] --local' 格式。建议安装 GNU getopt (如 macOS: brew install gnu-getopt)。"
+             print_warning "检测到非 GNU getopt，将使用基础参数解析。长选项如 --base 可能不受支持或需按 'cmd new <branch> [base] --local' 格式。建议安装 GNU getopt (如 macOS: brew install gnu-getopt)。"
         else
              print_warning "getopt 命令未找到，使用基础参数解析。这可能不支持所有高级选项。"
         fi
         
         if [ -z "$1" ]; then
             print_error "错误：需要提供新分支名称。"
-            echo "用法 (基础解析): gw new <branch_name> [base_branch] [--local]"
+            echo "用法 (基础解析): cmd new <branch_name> [base_branch] [--local]"
             return 1
         fi
         new_branch_name="$1"
@@ -218,9 +218,9 @@ gw_new() {
     print_success "操作完成！已创建并切换到新分支 '${new_branch_name}'。"
     print_info "现在可以开始在新分支上进行开发了。"
 
-    if $changes_were_stashed_by_gw_new; then
+    if $changes_were_stashed_by_cmd_new; then
         echo "" # Add a newline for better readability
-        print_info "之前在此次 'gw new' 操作开始时，有一些变更被自动暂存了。"
+        print_info "之前在此次 'cmd_new' 操作开始时，有一些变更被自动暂存了。"
         if confirm_action "是否尝试在新分支 '${new_branch_name}' 上应用 (git stash pop) 这些暂存的变更？"; then
             print_step "尝试应用暂存 (git stash pop)..."
             if git stash pop; then

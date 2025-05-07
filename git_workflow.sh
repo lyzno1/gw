@@ -221,7 +221,7 @@ main() {
             LAST_COMMAND_STATUS=$?
             ;;
         new)
-            gw_new "$@"
+            cmd_new "$@"
             LAST_COMMAND_STATUS=$?
             ;;
         finish)

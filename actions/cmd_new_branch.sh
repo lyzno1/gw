@@ -11,7 +11,7 @@ cmd_new_branch() {
     # This function is now effectively replaced by gw_new().
     # Keep it here for now or remove it if cleanup is desired.
     # For safety, redirect calls to the new function or print a deprecation warning.
-    echo -e "${YELLOW}警告: 'cmd_new_branch' 已被 'gw_new' 取代。请更新调用方式。${NC}"
-    gw_new "$@" # Redirect to the new function (gw_new must be available)
+    echo -e "${YELLOW}警告: 'cmd_new_branch' 已被 'cmd_new' 取代。请更新调用方式。${NC}"
+    cmd_new "$@" # Redirect to the new function (cmd_new must be available)
     return $?
 } 

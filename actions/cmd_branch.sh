@@ -16,43 +16,25 @@ cmd_branch() {
     fi
 
     if [ "$#" -eq 0 ]; then
-        # 无参数调用：显示美化版的分支列表
-        echo -e "${CYAN}=== 分支概览 ===${NC}"
-        
-        local current_branch
-        current_branch=$(get_current_branch_name)
-        
-        echo -e "${BOLD}本地分支:${NC}"
-        # 使用 git for-each-ref 提供更详细和彩色的输出
-        # HEAD 标记当前分支, refname:short 分支名, objectname:short commit SHA 短码
-        # contents:subject 最新提交信息, authorname 作者, committerdate:relative 相对提交时间
-        git for-each-ref --sort=-committerdate refs/heads/ --format='%(HEAD)%(color:yellow)%(refname:short)%(color:reset) - %(color:red)%(objectname:short)%(color:reset) - %(contents:subject) - %(authorname) (%(color:green)%(committerdate:relative)%(color:reset))' |
-        while IFS= read -r branch_line; do # 使用 IFS= 和 -r 确保整行读取，包括前导空格
-            if [[ $branch_line == \** ]]; then # 检查行首是否为 '*' (当前分支标记)
-                # 当前分支高亮显示 (通常是绿色，但 git for-each-ref 内部的 %(HEAD) 会处理)
-                # 我们这里确保整个行是绿色（如果需要覆盖 for-each-ref 的颜色）
-                # 或者依赖 for-each-ref 的 HEAD 标记和颜色
-                # 为了简单，如果 HEAD 标记存在，我们就相信 for-each-ref 的颜色，否则整行用默认色
-                # 实际上，git for-each-ref 的 %(HEAD) 会输出 '*'，我们可以用它来判断并额外高亮
-                echo -e "${GREEN}${branch_line}${NC}" # 将当前分支整行用绿色高亮
-            else
-                echo -e "  $branch_line" # 非当前分支，加两个空格缩进以示区别
-            fi
-        done
-        if ! git for-each-ref refs/heads/ --count=1 --format="%(refname)" > /dev/null 2>&1; then
-             echo "  (没有本地分支)"
-        fi
-
-        echo -e "\n${BOLD}远程跟踪分支:${NC}"
-        git for-each-ref --sort=-committerdate refs/remotes/ --format='  %(color:yellow)%(refname:short)%(color:reset) - %(color:red)%(objectname:short)%(color:reset) - %(contents:subject) - %(authorname) (%(color:green)%(committerdate:relative)%(color:reset))' | \
-        grep -v "/HEAD\$" # 过滤掉指向远程 HEAD 的特殊引用
-        if ! git for-each-ref refs/remotes/ --count=1 --format="%(refname)" | grep -v "/HEAD\$" > /dev/null 2>&1; then
-             echo "  (没有远程跟踪分支)"
-        fi
-        
-        echo -e "\n${CYAN}提示:${NC} 使用 'gw branch <原生git branch参数>' (如 -a, -r, -d <名>) 执行原生命令。"
-        echo -e "      创建分支推荐: 'gw new <名>', 删除分支推荐: 'gw rm <名>'。"
-
+        # 只显示本地分支，当前分支高亮，分支名左对齐，摘要可选
+        git for-each-ref --sort=-committerdate refs/heads/ --format='%(if)%(HEAD)%(then)*%(else) %(end) %(refname:short) %(objectname:short) %(contents:subject)' |
+        awk '{
+            head=$1; name=$2; sha=$3; $1=""; $2=""; $3=""; summary=substr($0,4);
+            if(head=="*") {
+                printf("\033[1;32m* %-20s %-8s %s\033[0m\n", name, sha, summary);
+            } else {
+                printf("  %-20s %-8s %s\n", name, sha, summary);
+            }
+        }'
+        return 0
+    fi
+    if [ "$1" = "-r" ]; then
+        # 只显示远程分支，格式同上
+        git for-each-ref --sort=-committerdate refs/remotes/ --format='  %(refname:short) %(objectname:short) %(contents:subject)' |
+        awk '{
+            name=$1; sha=$2; $1=""; $2=""; summary=substr($0, length(name)+length(sha)+3);
+            printf("  %-20s %-8s %s\n", name, sha, summary);
+        }'
         return 0
     else
         # 带参数调用：行为类似原生 git branch，但有一些增强提示

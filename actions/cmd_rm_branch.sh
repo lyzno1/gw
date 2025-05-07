@@ -8,6 +8,30 @@
 # - config_vars.sh (for MAIN_BRANCH, REMOTE_NAME)
 # - utils_print.sh (for print_step, print_success, print_error, print_warning, print_info)
 
+# 检查分支是否已完全合并到主分支 (针对rebase工作流优化)
+is_branch_merged_to_main() {
+    local branch_to_check="$1"
+    # MAIN_BRANCH 变量应在此函数作用域内可用，或者作为参数传入
+    # 假设 MAIN_BRANCH 是全局可访问的 (来自 sourced config_vars.sh)
+
+    # 检查 branch_to_check 相对于 MAIN_BRANCH 是否有新的提交
+    # 如果 count > 0, 说明 branch_to_check 有 MAIN_BRANCH 没有的提交
+    local commits_ahead
+    commits_ahead=$(git rev-list --count "$MAIN_BRANCH..$branch_to_check" 2>/dev/null)
+    
+    if [ -z "$commits_ahead" ]; then
+        # rev-list 可能因错误输出空，或分支不存在等，视为未合并或检查失败
+        # print_warning "无法确定分支 '$branch_to_check' 相对于 '$MAIN_BRANCH' 的合并状态。"
+        return 1 # 保守起见，视为未合并
+    fi
+
+    if [ "$commits_ahead" -eq 0 ]; then
+        return 0 # 已合并 (没有新提交)
+    else
+        return 1 # 未合并 (有新提交)
+    fi
+}
+
 # 删除本地分支 (新命令 gw rm)
 cmd_rm_branch() {
     if ! check_in_git_repo; then return 1; fi
@@ -60,12 +84,9 @@ cmd_rm_branch() {
         while IFS= read -r branch; do
             [ "$branch" = "$MAIN_BRANCH" ] && continue
             [ "$branch" = "$current_branch" ] && continue
-            # 用 git cherry 检查内容是否已合并
-            if git cherry "$MAIN_BRANCH" "$branch" | grep -q '^\+'; then
-                # 有 + 说明有 main 没有的提交，不可删
-                continue
-            else
-                # 没有 +，说明内容已合并
+            
+            # 使用新的合并检测逻辑
+            if is_branch_merged_to_main "$branch"; then
                 candidate_branches+=("$branch")
             fi
         done < <(git for-each-ref --format='%(refname:short)' refs/heads/)

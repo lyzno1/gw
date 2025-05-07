@@ -78,6 +78,7 @@ show_help() {
     echo "                              (若不使用 --delete-remotes，删除远程分支前会进行确认，逻辑同上)。"
     echo "                            gw rm all [-f] [--delete-remotes]"
     echo "                              清理所有已合并到 '$MAIN_BRANCH' 的本地分支 (需在主分支运行)。"
+    echo "                              (改进了对 rebase 合并分支的检测能力)"
     echo "                              -f: 强制删除本地分支。"
     echo "                              --delete-remotes: 同时删除所有匹配的远程分支。"
     echo "                            (所有模式下，无法识别的参数将被忽略)"

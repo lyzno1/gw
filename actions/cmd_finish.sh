@@ -15,21 +15,10 @@ cmd_finish() {
     if ! check_in_git_repo; then return 1; fi
 
     local no_switch=false
-    local do_pr=false # 标记是否创建 PR
+    local do_pr=false
 
-    # 解析参数
-    # 使用 getopt 进行更健壮的参数解析
-    local_args=$(getopt -o np --long no-switch,pr -n 'gw finish' -- "$@")
-    if [ $? != 0 ]; then 
-        echo -e "${RED}参数解析错误。${NC}" >&2
-        # show_help_finish # 假设有一个 cmd_finish 的特定帮助函数
-        echo "用法: gw finish [--no-switch | -n] [--pr | -p]"
-        return 1 
-    fi
-
-    eval set -- "$local_args"
-
-    while true; do
+    # 手动参数解析，兼容 macOS/Linux
+    while [[ $# -gt 0 ]]; do
         case "$1" in
             -n|--no-switch)
                 no_switch=true
@@ -39,22 +28,13 @@ cmd_finish() {
                 do_pr=true
                 shift
                 ;;
-            --)
-                shift
-                break
-                ;;
             *)
-                # 这是 getopt 不应该发生的情况
-                echo -e "${RED}内部参数解析错误。${NC}" >&2
-                return 1
+                # 其他参数可忽略或警告
+                print_warning "'finish' 命令忽略了额外的参数: $1"
+                shift
                 ;;
         esac
     done
-
-    # 检查是否有其他非选项参数（目前 finish 不支持）
-    if [ $# -gt 0 ]; then
-        print_warning "'finish' 命令忽略了额外的参数: $@"
-    fi
 
     local current_branch
     current_branch=$(get_current_branch_name)

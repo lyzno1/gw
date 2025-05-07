@@ -151,14 +151,7 @@ do_push_with_retry() {
     fi
     
     local command_str="git push ${push_args[*]}"
-    
-    echo -e "${GREEN}--- Git 推送重试执行 ---${NC}"
     echo "执行命令: $command_str"
-    echo "最大尝试次数: $MAX_ATTEMPTS"
-    if [ "$DELAY_SECONDS" -gt 0 ]; then
-        echo "每次尝试间隔: ${DELAY_SECONDS} 秒"
-    fi
-    echo "-----------------------------------------"
 
     # First attempt
     git push "${push_args[@]}"
@@ -332,14 +325,7 @@ do_pull_with_retry() {
     fi
 
     local command_str="git pull ${final_pull_args[*]}"
-    
-    echo -e "${GREEN}--- Git 拉取重试执行 ---${NC}"
     echo "执行命令: $command_str"
-    echo "最大尝试次数: $MAX_ATTEMPTS"
-    if [ "$DELAY_SECONDS" -gt 0 ]; then
-        echo "每次尝试间隔: ${DELAY_SECONDS} 秒"
-    fi
-    echo "-----------------------------------------"
 
     # First attempt
     git pull "${final_pull_args[@]}"

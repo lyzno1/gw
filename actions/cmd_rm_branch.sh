@@ -92,7 +92,34 @@ cmd_rm_branch() {
         done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
 
         if [ ${#candidate_branches[@]} -eq 0 ]; then
-            print_info "没有找到内容已合并到 '$MAIN_BRANCH' 的其他本地分支可供清理。"
+            print_info "没有找到内容已合并到 '$MAIN_BRANCH' 的其他本地分支可供自动清理。"
+            
+            print_info "检测到以下其他本地分支 (非 '${MAIN_BRANCH}' 或当前分支):"
+            local other_local_branches_exist=false
+            while IFS= read -r branch_name; do
+                if [ "$branch_name" = "$MAIN_BRANCH" ] || [ "$branch_name" = "$current_branch" ]; then
+                    continue
+                fi
+                # 检查分支是否在候选列表中，如果在了就不重复显示（尽管这里候选列表为空）
+                local found_in_candidates=false
+                for cb in "${candidate_branches[@]}"; do # 此循环在此处实际无效，因为候选为空
+                    if [ "$cb" = "$branch_name" ]; then
+                        found_in_candidates=true
+                        break
+                    fi
+                done
+                if ! $found_in_candidates; then
+                    echo "  - $branch_name"
+                    other_local_branches_exist=true
+                fi
+            done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
+
+            if $other_local_branches_exist; then
+                print_info "如果以上某些分支的内容已通过其他方式 (如 Squash Merge) 合并到 '$MAIN_BRANCH'，"
+                print_info "请使用 'gw rm <分支名> [-f]' 手动删除它们。"
+            else
+                print_info "没有发现其他可供手动检查的本地分支。"
+            fi
             return 0
         fi
 

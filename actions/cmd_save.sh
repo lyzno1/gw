@@ -123,7 +123,7 @@ cmd_save() {
         git diff --cached --name-status | sed 's/^/# /' >> "$commit_msg_file_orig"
         
         echo -e "${YELLOW}请在你的编辑器中打开并编辑以下文件以输入提交信息:${NC}"
-        echo -e "  ${BOLD}$commit_msg_file_orig${NC}"
+        echo -e "  ${CYAN}${BOLD}$commit_msg_file_orig${NC}"
         echo -e "(在 macOS 上，你可以尝试 ${BOLD}Cmd + 点击${NC} 上面的路径快速打开)"
         echo -e -n "${CYAN}编辑完成后，请按 Enter 键继续提交... (按 Ctrl+C 取消提交)${NC}"
         read -r # 等待用户按 Enter

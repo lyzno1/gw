@@ -176,29 +176,42 @@ cmd_new() {
          return 1
     fi # 如果 base_branch_exists_locally 为 true，则什么都不做，直接用本地的
 
-    # 1. 切换到基础分支 (现在它应该在本地存在了)
-    print_step "1/3: 切换到基础分支 '${base_branch}'..."
-    if ! git checkout "$base_branch"; then
-        print_error "切换到基础分支 '${base_branch}' 失败。"
-        return 1
-    fi
-    print_success "已切换到基础分支 '${base_branch}'。"
+    # 获取当前分支
+    local current_branch
+    current_branch=$(get_current_branch_name)
+    if [ $? -ne 0 ]; then return 1; fi
 
-    # 2. 如果不是 --local 模式，则拉取基础分支的最新代码
+    local need_checkout=true
+    if [ "$current_branch" = "$base_branch" ]; then
+        need_checkout=false
+    fi
+
+    local step=1
+    if $need_checkout; then
+        print_step "$step/3: 切换到基础分支 '${base_branch}'..."
+        if ! git checkout "$base_branch"; then
+            print_error "切换到基础分支 '${base_branch}' 失败。"
+            return 1
+        fi
+        print_success "已切换到基础分支 '${base_branch}'。"
+        step=$((step+1))
+    fi
+
     if ! $local_flag; then
-        print_step "2/3: 拉取基础分支 '${base_branch}' 的最新代码 (使用 rebase)..."
+        print_step "$step/3: 拉取基础分支 '${base_branch}' 的最新代码 (使用 rebase)..."
         if ! do_pull_with_retry --rebase "$REMOTE_NAME" "$base_branch"; then # 使用带重试的 pull 并 rebase
             print_error "从 '${REMOTE_NAME}/${base_branch}' 拉取代码 (rebase) 失败。"
             print_warning "请检查网络连接或手动解决冲突后重试。当前停留在 '${base_branch}'。"
             return 1
         fi
         print_success "基础分支 '${base_branch}' 已更新至最新。"
+        step=$((step+1))
     else
-        print_step "2/3: 跳过拉取最新代码 (--local 模式)。基础分支状态为本地当前状态。"
+        print_step "$step/3: 跳过拉取最新代码 (--local 模式)。基础分支状态为本地当前状态。"
+        step=$((step+1))
     fi
 
-    # 3. 创建并切换到新分支
-    print_step "3/3: 创建并切换到新分支 '${new_branch_name}'..."
+    print_step "$step/3: 创建并切换到新分支 '${new_branch_name}'..."
     if git rev-parse --verify --quiet "refs/heads/$new_branch_name" > /dev/null 2>&1; then
          print_warning "分支 '${new_branch_name}' 已存在。将直接切换到该分支。"
          if ! git checkout "$new_branch_name"; then

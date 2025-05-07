@@ -51,24 +51,31 @@ cmd_rm_branch() {
             return 1
         fi
 
-        print_step "正在查找可清理的分支 (已合并到 '$MAIN_BRANCH')..."
-        
+        print_step "正在查找可清理的分支 (内容已合并到 '$MAIN_BRANCH')..."
         local local_branches_to_delete=()
         local remote_branches_to_delete=()
         local candidate_branches=()
 
-        # 获取所有不是 MAIN_BRANCH 也不是当前分支的本地分支
-        # 同时检查它们是否已合并到 MAIN_BRANCH
-        while IFS= read -r line; do
-            candidate_branches+=("$line")
-        done < <(git branch --merged "$MAIN_BRANCH" --format="%(refname:short)" | grep -v -E "^(\* )?$MAIN_BRANCH$")
+        # 获取所有本地分支（排除主分支和当前分支）
+        while IFS= read -r branch; do
+            [ "$branch" = "$MAIN_BRANCH" ] && continue
+            [ "$branch" = "$current_branch" ] && continue
+            # 用 git cherry 检查内容是否已合并
+            if git cherry "$MAIN_BRANCH" "$branch" | grep -q '^\+'; then
+                # 有 + 说明有 main 没有的提交，不可删
+                continue
+            else
+                # 没有 +，说明内容已合并
+                candidate_branches+=("$branch")
+            fi
+        done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
 
         if [ ${#candidate_branches[@]} -eq 0 ]; then
-            print_info "没有找到已合并到 '$MAIN_BRANCH' 的其他本地分支可供清理。"
+            print_info "没有找到内容已合并到 '$MAIN_BRANCH' 的其他本地分支可供清理。"
             return 0
         fi
 
-        print_info "以下已合并到 '$MAIN_BRANCH' 的本地分支将被考虑删除:"
+        print_info "以下内容已合并到 '$MAIN_BRANCH' 的本地分支将被考虑删除:"
         for b in "${candidate_branches[@]}"; do 
             echo "  - 本地: $b"
             local_branches_to_delete+=("$b")

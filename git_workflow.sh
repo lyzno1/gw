@@ -177,8 +177,8 @@ main() {
             if [ "$#" -ne 0 ]; then
                 _report_arg_error "add-all" "命令 'add-all' 不需要参数。"
             else
-                cmd_add_all
-                LAST_COMMAND_STATUS=$?
+            cmd_add_all
+            LAST_COMMAND_STATUS=$?
             fi
             ;;
         commit)
@@ -211,8 +211,8 @@ main() {
             else
                 cmd_sync # cmd_sync 内部不处理参数
                 LAST_COMMAND_STATUS=$?
-            fi
-            ;;
+             fi
+             ;;
         branch)
             cmd_branch "$@"
                     LAST_COMMAND_STATUS=$?
@@ -296,8 +296,8 @@ main() {
             if [ "$#" -ne 1 ]; then
                 _report_arg_error "clean" "命令 'clean' 需要且仅需要一个分支名参数。"
             else
-                cmd_clean_branch "$@"
-                LAST_COMMAND_STATUS=$?
+            cmd_clean_branch "$@"
+            LAST_COMMAND_STATUS=$?
             fi
             ;;
         stash)

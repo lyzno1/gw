@@ -189,11 +189,11 @@ cmd_new() {
     local step=1
     if $need_checkout; then
         print_step "$step/3: 切换到基础分支 '${base_branch}'..."
-        if ! git checkout "$base_branch"; then
-            print_error "切换到基础分支 '${base_branch}' 失败。"
-            return 1
-        fi
-        print_success "已切换到基础分支 '${base_branch}'。"
+    if ! git checkout "$base_branch"; then
+        print_error "切换到基础分支 '${base_branch}' 失败。"
+        return 1
+    fi
+    print_success "已切换到基础分支 '${base_branch}'。"
         step=$((step+1))
     fi
 

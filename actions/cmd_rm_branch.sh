@@ -31,26 +31,24 @@ cmd_rm_branch() {
 
     local target="$1"
     local global_force=false # -f 参数现在是全局的，影响所有删除操作
-    local global_delete_remotes=false # --delete-remotes 也是全局的
+    # global_delete_remotes 标志不再需要
     
     if [ -z "$target" ]; then
         print_error "错误: 请指定要删除的分支名称或 'all'。"
-        print_info "用法: gw rm <分支名|all> [-f] [--delete-remotes]"
+        print_info "用法: gw rm <分支名|all> [-f]"
         return 1
     fi
     shift # 移除 target 参数
     
-    # 解析剩余的全局参数 -f 和 --delete-remotes
+    # 解析剩余的全局参数 -f
     for arg_in_loop in "$@"; do # Use a different variable name for the loop
         case "$arg_in_loop" in
             -f|--force)
                 global_force=true
                 ;;
-            --delete-remotes) 
-                global_delete_remotes=true
-                ;;
+            # 移除 --delete-remotes 解析
             *)
-                print_warning "未知参数 '$arg_in_loop' 在 'gw rm $target' 命令中将被忽略。"
+                print_warning "未知参数 '$arg_in_loop' 在 'gw rm $target' 命令中将被忽略。 (-f 是唯一支持的选项)"
                 ;;
         esac
     done
@@ -70,9 +68,8 @@ cmd_rm_branch() {
         local auto_merged_branches=()
         local remaining_non_main_branches=()
 
-        # 获取所有本地分支（排除主分支和当前分支）并分类
         while IFS= read -r branch; do
-            if [ "$branch" = "$MAIN_BRANCH" ] || [ "$branch" = "$current_branch" ]; then # current_branch is MAIN_BRANCH here
+            if [ "$branch" = "$MAIN_BRANCH" ] || [ "$branch" = "$current_branch" ]; then
                 continue
             fi
             
@@ -90,17 +87,15 @@ cmd_rm_branch() {
             for b in "${auto_merged_branches[@]}"; do echo "  - $b"; done
             echo ""
             local confirm_msg="确认要删除这 ${#auto_merged_branches[@]} 个自动识别的本地分支吗？"
-            if $global_delete_remotes; then confirm_msg+=" (同时尝试删除对应远程分支)"; fi
+            # 不再需要检查 global_delete_remotes
             
             if confirm_action "$confirm_msg" "N"; then
-                local local_delete_flag="-d"
-                if $global_force; then local_delete_flag="-D"; print_warning "将对自动识别的分支使用强制删除 (-f)。"; fi
+                if $global_force; then print_warning "将对自动识别的分支使用强制删除 (-f)。"; fi
                 
                 for branch_name in "${auto_merged_branches[@]}"; do
                     print_info "处理自动识别分支: '$branch_name'"
-                    # 调用单个分支删除逻辑，传递全局的 force 和 delete_remotes 标志
-                    # _delete_single_branch_internal <branch_name> <force_flag> <delete_remote_flag>
-                    if ! _delete_single_branch_internal "$branch_name" "$global_force" "$global_delete_remotes" "$current_branch"; then
+                    # 调用单个分支删除逻辑，传递全局的 force 标志
+                    if ! _delete_single_branch_internal "$branch_name" "$global_force" "$current_branch"; then
                         overall_success=false
                         print_warning "删除自动识别的分支 '$branch_name' 失败或被跳过。"
                     fi
@@ -126,7 +121,7 @@ cmd_rm_branch() {
             local choice_remaining
             read -r -p "您的选择 [M/F/S]: " choice_remaining
 
-            case "$(echo "$choice_remaining" | tr '[:lower:]' '[:upper:]')" in # Convert to uppercase
+            case "$(echo "$choice_remaining" | tr '[:lower:]' '[:upper:]')" in
                 M)
                     print_info "开始手动逐个审核剩余分支..."
                     for branch_name in "${remaining_non_main_branches[@]}"; do
@@ -137,17 +132,18 @@ cmd_rm_branch() {
                         read -r -p "对 '$branch_name' 的操作 [d/D/s/q]: " choice_manual
                         case "$(echo "$choice_manual" | tr '[:lower:]' '[:upper:]')" in
                             D)
-                                if ! _delete_single_branch_internal "$branch_name" true "$global_delete_remotes" "$current_branch"; then overall_success=false; fi
+                                # 调用时不再传递 remote 标志
+                                if ! _delete_single_branch_internal "$branch_name" true "$current_branch"; then overall_success=false; fi
                                 ;;
                             d)
-                                if ! _delete_single_branch_internal "$branch_name" false "$global_delete_remotes" "$current_branch"; then overall_success=false; fi
+                                if ! _delete_single_branch_internal "$branch_name" false "$current_branch"; then overall_success=false; fi
                                 ;;
                             S)
                                 print_info "已跳过分支 '$branch_name'。"
                                 ;;
                             Q)
                                 print_info "已退出手动审核。"
-                                break # Exit the loop for remaining_non_main_branches
+                                break
                                 ;;
                             *)
                                 print_warning "无效选择，已跳过分支 '$branch_name'。"
@@ -158,24 +154,20 @@ cmd_rm_branch() {
                 F)
                     print_warning "${BOLD}${RED}警告：您选择了全部强制删除所有 ${#remaining_non_main_branches[@]} 个列出的剩余非主分支！${NC}"
                     print_warning "${RED}此操作将无视这些分支的合并状态，直接使用 'git branch -D'。${NC}"
-                    if $global_delete_remotes; then print_warning "${RED}如果设置了 --delete-remotes，对应的远程分支也将被尝试删除。${NC}"; fi
+                    # 不再需要检查 global_delete_remotes
                     print_warning "${RED}这是一个非常危险的操作，可能导致未推送或未完成的工作永久丢失！${NC}"
                     
-                    local confirm_force_all_text="DELETE ALL ${#remaining_non_main_branches[@]} LISTED BRANCHES"
-                    echo -e -n "${CYAN}为确认此操作，请输入以下确切文本 (区分大小写): '${confirm_force_all_text}' -> ${NC}"
-                    read -r user_confirmation
-                    
-                    if [ "$user_confirmation" = "$confirm_force_all_text" ]; then
+                    if confirm_action "您确定要强制删除所有 ${#remaining_non_main_branches[@]} 个列出的剩余分支吗？请再次确认此危险操作！" "N"; then
                         print_info "确认通过。开始强制删除所有列出的剩余分支..."
                         for branch_name in "${remaining_non_main_branches[@]}"; do
-                            if ! _delete_single_branch_internal "$branch_name" true "$global_delete_remotes" "$current_branch"; then 
+                            # 调用时强制标志为 true，不传 remote 标志
+                            if ! _delete_single_branch_internal "$branch_name" true "$current_branch"; then 
                                 overall_success=false;
-                                # _delete_single_branch_internal 会打印自己的错误，这里不再重复
                             fi
                         done
                     else
-                        print_error "确认文本不匹配。已取消强制批量删除操作。"
-                        overall_success=false # Indicate that the intended full cleanup didn't happen as chosen
+                        print_error "确认未通过。已取消强制批量删除操作。"
+                        overall_success=false
                     fi
                     ;;
                 S)
@@ -183,10 +175,10 @@ cmd_rm_branch() {
                     ;;
                 *)
                     print_warning "无效选择。未对剩余分支执行任何操作。"
-                    overall_success=false # Indicate that user choice wasn't clear
+                    overall_success=false
                     ;;
             esac
-        elif [ ${#auto_merged_branches[@]} -eq 0 ]; then # No auto-merged and no remaining means no other branches
+        elif [ ${#auto_merged_branches[@]} -eq 0 ]; then
              print_info "没有其他本地分支可供清理 (除了 '$MAIN_BRANCH')。"
         fi 
         
@@ -197,54 +189,50 @@ cmd_rm_branch() {
             print_warning "'gw rm all' 操作已处理，但可能部分分支未按预期删除或被跳过。请检查输出。"
             return 1
         fi
-
-    else # 单个分支删除逻辑 (gw rm <branch_name> [-f] [--delete-remotes])
-        # This part uses the _delete_single_branch_internal directly
-        if _delete_single_branch_internal "$target" "$global_force" "$global_delete_remotes" "$current_branch"; then
+        
+    else # 单个分支删除逻辑 (gw rm <branch_name> [-f])
+        # 调用内部函数，只传递 force 标志
+        if _delete_single_branch_internal "$target" "$global_force" "$current_branch"; then
             return 0
         else
-            return 1
+             return 1
         fi
     fi
 }
 
 # 内部函数，用于删除单个分支，由 cmd_rm_branch 的 'all' 模式和单一模式调用
-# 参数: $1: branch_to_del, $2: force_flag (true/false string), $3: delete_remote_flag (true/false string), $4: current_branch_name_when_called
+# 参数: $1: branch_to_del, $2: force_flag (true/false string), $3: current_branch_name_when_called
 _delete_single_branch_internal() {
     local branch_to_del="$1"
     local force_delete=$2 # Expects "true" or "false"
-    local delete_remotes=$3 # Expects "true" or "false"
-    local caller_current_branch="$4"
+    local caller_current_branch="$3"
+    # 不再需要 delete_remotes 参数
 
     if [ "$branch_to_del" = "$caller_current_branch" ]; then
-        print_error "错误：不能删除当前所在的分支 ('$caller_current_branch')。请先切换。" # More specific error
-        return 1
-    fi
-    
-    if [ "$branch_to_del" = "$MAIN_BRANCH" ]; then
-        print_error "错误：不能删除主分支 ($MAIN_BRANCH)。"
-        return 1
-    fi
-    
-    if ! git rev-parse --verify --quiet "refs/heads/$branch_to_del"; then
-         print_error "错误：本地分支 '$branch_to_del' 不存在。"
-         return 1
-    fi
+        print_error "错误：不能删除当前所在的分支 ('$caller_current_branch')。请先切换。"
+            return 1
+        fi
+        
+        if [ "$branch_to_del" = "$MAIN_BRANCH" ]; then
+            print_error "错误：不能删除主分支 ($MAIN_BRANCH)。"
+            return 1
+        fi
+        
+        if ! git rev-parse --verify --quiet "refs/heads/$branch_to_del"; then
+             print_error "错误：本地分支 '$branch_to_del' 不存在。"
+             return 1
+        fi
 
     local local_delete_git_flag="-d"
-    local perform_force_delete_check=true # By default, perform merge checks unless force_delete is true
+    local perform_force_delete_check=true
 
     if [ "$force_delete" = true ]; then
         local_delete_git_flag="-D"
-        perform_force_delete_check=false # Already forced, no need for extra checks/prompts for this specific branch
+        perform_force_delete_check=false
         print_info "将强制删除本地分支 '$branch_to_del' (使用 -D)。"
     fi
 
-    # If not globally forced, and this isn't an auto-identified branch from 'rm all' stage 1,
-    # then perform specific merge check for single branch deletion or manual 'all' mode.
-    # For 'gw rm <branchname>' (no -f), or interactive 'd' in 'rm all'.
     if $perform_force_delete_check; then
-        # For non-forced deletion, check if it's merged to current HEAD (which should be MAIN_BRANCH if called from 'all' mode after checkout)
         if ! git branch --merged "$caller_current_branch" | grep -qE "(^\* |^[[:space:]]+)$branch_to_del$"; then
             print_warning "分支 '$branch_to_del' 包含未合并到 '$caller_current_branch' 的更改。"
             if confirm_action "是否要强制删除此分支 '$branch_to_del'？" "N"; then
@@ -252,47 +240,45 @@ _delete_single_branch_internal() {
                 print_info "将强制删除本地分支 '$branch_to_del' (用户确认)。"
             else
                 print_info "已取消删除分支 '$branch_to_del'。"
-                return 1 # User chose not to delete
+                return 1
             fi
         fi
     fi
     
+    local local_branch_deleted_successfully=false
     print_step "尝试删除本地分支 '$branch_to_del' (使用 git branch $local_delete_git_flag $branch_to_del)..."
     if git branch "$local_delete_git_flag" "$branch_to_del"; then
         print_success "本地分支 '$branch_to_del' 删除成功。"
+        local_branch_deleted_successfully=true
     else
         print_error "删除本地分支 '$branch_to_del' 失败。"
-        return 1
+        return 1 # 本地删除失败，直接返回错误
     fi
 
-    # 处理远程分支删除
-    if [ "$delete_remotes" = true ]; then
+    # 总是检查远程分支 (如果本地删除成功)
+    if $local_branch_deleted_successfully; then
         local remote_to_try="$REMOTE_NAME"
         local remote_branch_to_try="$branch_to_del"
-        local upstream_info
-        upstream_info=$(git for-each-ref --format='%(upstream:short)' "refs/heads/$branch_to_del" 2>/dev/null) # Branch is already deleted, this won't work
-        # Need to get upstream before deleting local branch, or make it part of the 'all' mode's initial scan.
-        # For simplicity now, if --delete-remotes is global, we just try default remote.
-        # A more robust way for single 'gw rm branch --delete-remotes' would be to get upstream before local delete.
-        # However, this internal function is also called by 'all' mode where upstream might not be relevant for *every* branch.
-
-        # Try to find if a remote branch with the same name exists on default remote
+        
+        print_info "正在检查远程 '$remote_to_try' 上是否存在同名分支 '$remote_branch_to_try'..."
         if git ls-remote --exit-code --heads "$remote_to_try" "$remote_branch_to_try" > /dev/null 2>&1; then
-            print_info "检测到远程分支 '$remote_to_try/$remote_branch_to_try'。根据 --delete-remotes 标志，将尝试删除它。"
-            if confirm_action "确认删除远程分支 '$remote_to_try/$remote_branch_to_try' 吗？" "N"; then
+            print_warning "检测到远程分支 '$remote_to_try/$remote_branch_to_try'。"
+            if confirm_action "是否要删除此远程分支 '$remote_to_try/$remote_branch_to_try'？" "N"; then
                 print_step "尝试删除远程分支 '$remote_to_try/$remote_branch_to_try'..."
                 if git push "$remote_to_try" --delete "$remote_branch_to_try"; then
                     print_success "远程分支 '$remote_to_try/$remote_branch_to_try' 删除成功。"
+                    # 即使远程删除成功，整体仍然是成功
                 else
                     print_error "删除远程分支 '$remote_to_try/$remote_branch_to_try' 失败。"
-                    return 1 # Consider this a failure of the overall operation for this branch
+                    return 1 # 远程删除失败，将此次操作标记为失败
                 fi
             else
                 print_info "已跳过删除远程分支 '$remote_to_try/$remote_branch_to_try'。"
             fi
         else
-            print_info "在远程 '$remote_to_try' 上未找到名为 '$remote_branch_to_try' 的分支，或 --delete-remotes 未激活。"
+            print_info "在远程 '$remote_to_try' 上未找到同名分支 '$remote_branch_to_try'。"
         fi
     fi
-    return 0 # Success for this single branch
+
+    return 0 # 本地删除成功，远程处理完成（或跳过）
 } 

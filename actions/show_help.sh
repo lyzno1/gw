@@ -46,6 +46,8 @@ show_help() {
     printf "  ${GREEN}%-22s${NC} %s\n" "stash [子命令] [...]" "- 暂存工作区变更 (封装常用 stash 子命令, 对 clear 有确认)。"
     printf "  ${GREEN}%-22s${NC} %s\n" "rebase <目标> [...]" "- Rebase 当前分支 (增强版: 自动更新目标, 处理 stash)。"
     printf "  %-22s  ${GRAY}(支持 -i, --continue, --abort, --skip)${NC}\n" ""
+    printf "  ${GREEN}%-22s${NC} %s\n" "undo [--soft|--hard]" "- 撤销上一次提交。默认放回工作区, --soft 保留暂存, --hard 丢弃。"
+    printf "  ${GREEN}%-22s${NC} %s\n" "unstage [-i] [文件...]" "- 将暂存区更改移回工作区。默认全部, -i 交互, 可指定文件。"
     echo ""
 
     # --- 仓库管理与配置 ---

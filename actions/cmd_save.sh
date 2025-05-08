@@ -122,14 +122,39 @@ cmd_save() {
         echo "# 暂存的变更：" >> "$commit_msg_file_orig"
         git diff --cached --name-status | sed 's/^/# /' >> "$commit_msg_file_orig"
         
-        echo -e "${YELLOW}请在你的编辑器中打开并编辑以下文件以输入提交信息:${NC}"
-        echo -e "  ${CYAN}${BOLD}$commit_msg_file_orig${NC}"
-        echo -e "(在 macOS 上，你可以尝试 ${BOLD}Cmd + 点击${NC} 上面的路径快速打开)"
-        echo -e -n "${CYAN}编辑完成后，请按 Enter 键继续提交... (按 Ctrl+C 取消提交)${NC}"
-        read -r # 等待用户按 Enter
-
+        # --- 尝试使用 code --wait 打开编辑器 ---
+        local editor_opened_successfully=false
+        if command -v code >/dev/null 2>&1; then
+            print_info "检测到 'code' 命令，尝试使用 VS Code (或兼容 IDE) 打开编辑..."
+            if code --wait "$commit_msg_file_orig"; then
+                # code --wait 成功返回 (用户已关闭文件)
+                editor_opened_successfully=true
+                print_success "VS Code 编辑器已关闭。"
+            else
+                local exit_code=$?
+                print_warning "'code --wait' 命令执行失败或未正常等待 (退出码: $exit_code)。"
+                print_warning "可能是 VS Code 未正确安装或 code 命令未配置 --wait 支持。"
+                # Fall through to manual confirmation
+            fi
+        else
+            print_info "未检测到 'code' 命令。"
+            # 可以选择性地在这里添加对 $EDITOR 的检查和调用
+            # if [ -n "$EDITOR" ]; then ... else ... fi
+            # 但根据用户需求，我们直接回退到打印路径
+        fi
+        
+        # --- 如果编辑器未能自动打开并等待，则回退到手动确认 ---
+        if ! $editor_opened_successfully; then
+            echo -e "${YELLOW}请在你的编辑器中打开并编辑以下文件以输入提交信息:${NC}"
+            echo -e "  ${CYAN}${BOLD}$commit_msg_file_orig${NC}"
+            echo -e "(在 macOS 上，你可以尝试 ${BOLD}Cmd + 点击${NC} 上面的路径快速打开)"
+            echo -e -n "${CYAN}编辑完成后，请按 Enter 键继续提交... (按 Ctrl+C 取消提交)${NC}"
+            read -r # 等待用户按 Enter
+            # 假设用户已经编辑完毕
+        fi
+        
+        # --- 后续检查和提交逻辑 (保持不变) ---
         # 检查用户是否真的编辑了文件 (移除了所有#或空行，或添加了非注释内容)
-        # 或者说，文件是否包含非注释、非空行
         if ! grep -v -q -E '^#|^$' "$commit_msg_file_orig"; then
             echo -e "${RED}错误：提交信息文件为空或只包含注释行。提交已取消。${NC}"
             # 这里不删除原始 COMMIT_EDITMSG，git commit 失败时，git 自己会处理或保留它

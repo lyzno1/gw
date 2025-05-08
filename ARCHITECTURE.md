@@ -109,6 +109,13 @@ gw (git_workflow.sh) -- 主入口脚本
 *   **`cmd_status.sh` (`gw status`)**: 提供比 `git status` 更丰富的概览，包括与远程的同步状态 (ahead/behind)、可选的最近日志和标签。
 *   **`cmd_reset.sh` (`gw reset`)**: 对 `git reset --hard` 增加严格的确认步骤。
 *   **`cmd_stash.sh` (`gw stash`)**: 封装常用 `git stash` 子命令，统一交互和反馈，对 `clear` 操作有确认。
+*   **`cmd_rebase.sh` (`gw rebase`) (新增)**:
+    *   封装 `git rebase`，提供更完善的工作流程。
+    *   支持 rebase 到指定的上游分支 (如 `gw rebase main`)，会自动更新上游分支。
+    *   支持原生 rebase 操作，如交互式 rebase (`gw rebase -i HEAD~3`)。
+    *   支持 rebase 管理命令 (`--continue`, `--abort`, `--skip`)。
+    *   在执行 rebase 前，会自动处理未提交的变更 (提示stash)。
+    *   Rebase 成功后，会尝试恢复之前自动暂存的变更。
 *   **`show_help.sh`**: 生成详细的、分类的、带颜色的帮助信息。
 *   **其他**: 多数是原生 Git 命令的简单包装器，增加了仓库检查和统一的 `gw` 命令入口，部分有细微增强 (如 `cmd_log` 自动分页)。
 *   **已弃用/重定向**: 如 `cmd_new_branch.sh` 重定向到 `cmd_new.sh`。`cmd_delete_branch.sh` 的功能很大程度上被 `cmd_rm_branch.sh` 覆盖和增强。

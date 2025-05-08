@@ -105,7 +105,7 @@ cmd_save() {
             return 1
         fi
     else
-        # 执行新的默认流程：打印 COMMIT_EDITMSG 路径让用户编辑，然后提交
+        # 执行新的默认流程：准备 COMMIT_EDITMSG 让用户编辑，然后提交
         local git_dir
         git_dir=$(git rev-parse --git-dir)
         if [ $? -ne 0 ] || [ -z "$git_dir" ]; then
@@ -113,14 +113,51 @@ cmd_save() {
             return 1
         fi
         local commit_msg_file_orig="$git_dir/COMMIT_EDITMSG"
+        local current_branch
+        current_branch=$(get_current_branch_name)
+        if [ $? -ne 0 ]; then
+            # 不再使用 print_warning，以保持原有风格，只记录到变量
+            current_branch="未知分支"
+        fi
         
-        # 准备提交信息文件模板
-        # 清空或创建 COMMIT_EDITMSG
+        # 准备提交信息文件模板，恢复原始提示 + 新增功能
         echo "" > "$commit_msg_file_orig"
-        echo "# 请输入提交说明。以 '#' 开始的行将被忽略。" >> "$commit_msg_file_orig"
+        echo "# 请输入提交说明。以 '#' 开始的行将被忽略。" >> "$commit_msg_file_orig" # 保留原始提示
         echo "#" >> "$commit_msg_file_orig"
-        echo "# 暂存的变更：" >> "$commit_msg_file_orig"
-        git diff --cached --name-status | sed 's/^/# /' >> "$commit_msg_file_orig"
+        echo "# 当前所在分支：$current_branch" >> "$commit_msg_file_orig" # 新增功能
+        echo "#" >> "$commit_msg_file_orig"
+        echo "# 暂存的变更：" >> "$commit_msg_file_orig" # 保留原始提示
+
+        local staged_files_output
+        # 获取暂存文件，只关心暂存区状态 (X)，不包括工作区状态 (Y)
+        staged_files_output=$(git status --porcelain=v1 -uall | grep -E '^[MARCDU][[:space:]]')
+
+        if [ -n "$staged_files_output" ]; then
+            echo "$staged_files_output" | while IFS= read -r line; do
+                local X=${line:0:1} # 只取第一个字符作为暂存区状态
+                local file_path_raw=${line:3} # 去掉 "X " 前缀
+                local display_status=""
+                local file_display_path="$file_path_raw"
+
+                case "$X" in
+                    M) display_status="已修改："  ;; 
+                    A) display_status="新文件："  ;; 
+                    D) display_status="已删除："  ;; 
+                    R) display_status="已重命名："; file_display_path=$(echo "$file_path_raw" | sed 's/ -> / → /g') ;; # 将 -> 替换为箭头
+                    C) display_status="已复制："  ; file_display_path=$(echo "$file_path_raw" | sed 's/ -> / → /g') ;; # 将 -> 替换为箭头
+                    U) display_status="合并冲突：";; 
+                    *) display_status="未知($X)：";;
+                esac
+                
+                # 输出格式: #<TAB>中文状态描述<TAB>文件路径
+                # 使用 echo -e 来确保 	 被解释为制表符
+                echo -e "#\t${display_status}\t${file_display_path}" >> "$commit_msg_file_orig"
+
+            done
+        else
+            echo "# (没有检测到暂存的变更)" >> "$commit_msg_file_orig"
+        fi
+        echo "#" >> "$commit_msg_file_orig"
         
         # --- 尝试使用 code --wait 打开编辑器 ---
         local editor_opened_successfully=false
@@ -161,12 +198,13 @@ cmd_save() {
             return 1
         fi        
         
-        # 新增：清理 COMMIT_EDITMSG 中的注释行和模板提示行，保存到新文件
+        # 清理 COMMIT_EDITMSG 中的注释行和特定模板提示行，保存到新文件
         local cleaned_commit_msg_file="${commit_msg_file_orig}.gw_cleaned"
         # 移除注释行、特定模板提示行，并压缩连续的空行
-        grep -v -E '^#|请输入提交说明。以|暂存的变更：' "$commit_msg_file_orig" | awk 'NF > 0 {blank_lines=0; print} NF == 0 {if (blank_lines < 1) print; blank_lines++}' > "$cleaned_commit_msg_file"
+        # 注意：这里的 grep -v 也需要更新以匹配脚本内定义的模板行
+        grep -v -E '^#|请输入提交说明。以|当前所在分支：|暂存的变更：' "$commit_msg_file_orig" | awk 'NF > 0 {blank_lines=0; print} NF == 0 {if (blank_lines < 1) print; blank_lines++}' > "$cleaned_commit_msg_file"
         
-        # 再次检查清理后的文件是否还有实际内容（防止仅有模板行被移除后变空）
+        # 再次检查清理后的文件是否还有实际内容
         if ! grep -v -q -E '^$' "$cleaned_commit_msg_file"; then # 只需要检查是否全为空行
             echo -e "${RED}错误：清理后的提交信息为空。提交已取消。${NC}"
             rm -f "$cleaned_commit_msg_file" # 清理我们创建的临时文件

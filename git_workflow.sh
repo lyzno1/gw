@@ -42,6 +42,9 @@ shopt -s nullglob
 declare -a action_files=(
     "${SCRIPT_DIR}/actions/cmd_"*.sh
     "${SCRIPT_DIR}/actions/gw_"*.sh
+    # Explicitly add new files if they don't match cmd_* or gw_*
+    # "${SCRIPT_DIR}/actions/cmd_undo.sh" # Already covered by cmd_*.sh
+    # "${SCRIPT_DIR}/actions/cmd_unstage.sh" # Already covered by cmd_*.sh
 )
 if [ -f "${SCRIPT_DIR}/actions/show_help.sh" ]; then
     action_files+=("${SCRIPT_DIR}/actions/show_help.sh")
@@ -249,6 +252,14 @@ main() {
             cmd_rebase "$@"
             LAST_COMMAND_STATUS=$?
             ;;
+        undo)
+            cmd_undo "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
+        unstage)
+            cmd_unstage "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
         main|master)
             echo -e "${BLUE}准备推送主分支 ($MAIN_BRANCH)...${NC}"
             cmd_push "$REMOTE_NAME" "$MAIN_BRANCH" "$@"
@@ -309,8 +320,8 @@ main() {
             LAST_COMMAND_STATUS=$?
             ;;
         help|--help|-h)
-            show_help
-            LAST_COMMAND_STATUS=0
+            show_help "$@" # Pass remaining args to help
+            LAST_COMMAND_STATUS=$?
             ;;
         *)
             echo -e "${RED}错误: 未知命令 \"$command\"${NC}"

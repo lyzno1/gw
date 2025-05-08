@@ -245,6 +245,10 @@ main() {
             cmd_finish "$@"
             LAST_COMMAND_STATUS=$?
             ;;
+        rebase)
+            cmd_rebase "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
         main|master)
             echo -e "${BLUE}准备推送主分支 ($MAIN_BRANCH)...${NC}"
             cmd_push "$REMOTE_NAME" "$MAIN_BRANCH" "$@"

@@ -58,6 +58,9 @@ show_help() {
     printf "  ${BLUE}%-22s${NC} %s\n" "config set remote.default <name>" "- 设置 'gw' 默认远程名 (修改脚本配置)。"
     printf "  ${BLUE}%-22s${NC} %s\n" "remote [...]" "- 管理远程仓库 (原生 remote 包装器)。"
     printf "  ${BLUE}%-22s${NC} %s\n" "gh-create [repo] [...]" "- 在 GitHub 创建仓库并关联 (需 'gh' CLI)。"
+    printf "  ${BLUE}%-22s${NC} %s\n" "ide <name|cmd>" "- 设置 'gw save' 编辑提交信息时默认使用的编辑器。"
+    printf "  %-22s  ${GRAY}(<name>: vscode,cursor,vim等短名称; <cmd>: \"完整命令 --参数\")${NC}\n" ""
+    printf "  %-22s  ${GRAY}(配置保存在 ~/.gw_editor_pref 文件中)${NC}\n" ""
     echo ""
 
     # --- 兼容旧版推送命令 ---
@@ -80,4 +83,4 @@ show_help() {
     echo -e "${YELLOW}🔧 环境变量 (部分):${NC}"
     echo -e "  ${GRAY}MAIN_BRANCH (当前: ${YELLOW}${MAIN_BRANCH}${GRAY}), REMOTE_NAME (当前: ${YELLOW}${REMOTE_NAME}${GRAY}) - 定义默认分支/远程。${NC}"
     echo -e "  ${GRAY}MAX_ATTEMPTS (当前: ${YELLOW}${MAX_ATTEMPTS}${GRAY}), DELAY_SECONDS (当前: ${YELLOW}${DELAY_SECONDS}${GRAY}) - 控制网络重试。${NC}"
-} 
+}

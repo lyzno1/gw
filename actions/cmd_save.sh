@@ -121,63 +121,120 @@ cmd_save() {
         fi
         
         # 准备提交信息文件模板，恢复原始提示 + 新增功能
-        echo "" > "$commit_msg_file_orig"
-        echo "# 请输入提交说明。以 '#' 开始的行将被忽略。" >> "$commit_msg_file_orig" # 保留原始提示
-        echo "#" >> "$commit_msg_file_orig"
-        echo "# 当前所在分支：$current_branch" >> "$commit_msg_file_orig" # 新增功能
-        echo "#" >> "$commit_msg_file_orig"
-        echo "# 暂存的变更：" >> "$commit_msg_file_orig" # 保留原始提示
+        # --- 生成新的 COMMIT_EDITMSG 内容 ---
+        {
+            echo "" # 用户要求的第一行换行
+            echo "# Please enter the commit message for your changes. Lines starting"
+            echo "# with '#' will be ignored, and an empty message aborts the commit."
+            echo "#"
+            echo "# On branch: $current_branch"
+            echo "#"
+            echo "# Changes to be committed:"
+            echo "#   (use \"gw unstage <file>...\" or \"git reset HEAD <file>...\" to unstage)"
+            echo "#"
 
-        local staged_files_output
-        # 获取暂存文件，只关心暂存区状态 (X)，不包括工作区状态 (Y)
-        staged_files_output=$(git status --porcelain=v1 -uall | grep -E '^[MARCDU][[:space:]]')
+            local staged_files_output
+            staged_files_output=$(git status --porcelain=v1 -uall | grep -E '^[MARCDU][[:space:]]')
+            local status_desc_width=12 # 固定状态描述的宽度
 
-        if [ -n "$staged_files_output" ]; then
-            echo "$staged_files_output" | while IFS= read -r line; do
-                local X=${line:0:1} # 只取第一个字符作为暂存区状态
-                local file_path_raw=${line:3} # 去掉 "X " 前缀
-                local display_status=""
-                local file_display_path="$file_path_raw"
+            if [ -n "$staged_files_output" ]; then
+                echo "$staged_files_output" | while IFS= read -r line; do
+                    local X=${line:0:1} # Staged status
+                    local file_path_raw=${line:3}
+                    local status_desc=""
+                    local file_display_for_commit="$file_path_raw"
 
-                case "$X" in
-                    M) display_status="已修改："  ;; 
-                    A) display_status="新文件："  ;; 
-                    D) display_status="已删除："  ;; 
-                    R) display_status="已重命名："; file_display_path=$(echo "$file_path_raw" | sed 's/ -> / → /g') ;; # 将 -> 替换为箭头
-                    C) display_status="已复制："  ; file_display_path=$(echo "$file_path_raw" | sed 's/ -> / → /g') ;; # 将 -> 替换为箭头
-                    U) display_status="合并冲突：";; 
-                    *) display_status="未知($X)：";;
-                esac
-                
-                # 输出格式: #<TAB>中文状态描述<TAB>文件路径
-                # 使用 echo -e 来确保 	 被解释为制表符
-                echo -e "#\t${display_status}\t${file_display_path}" >> "$commit_msg_file_orig"
+                    case "$X" in
+                        M) status_desc="modified:";;
+                        A) status_desc="new file:";;
+                        D) status_desc="deleted:";;
+                        R) status_desc="renamed:"; file_display_for_commit=$(echo "$file_path_raw" | sed 's/ -> / → /g');;
+                        C) status_desc="copied:"; file_display_for_commit=$(echo "$file_path_raw" | sed 's/ -> / → /g');;
+                        U) status_desc="unmerged:";; # Should ideally not happen if `gw save` is used after resolving
+                        *) status_desc="staged:";;
+                    esac
+                    
+                    # 使用 printf 进行对齐: # (8个空格缩进) status_desc (固定宽度) filepath
+                    printf "#       %-*s %s\n" "$status_desc_width" "$status_desc" "$file_display_for_commit"
+                done
+            else
+                echo "#       (no changes staged for commit)"
+            fi
+            echo "#"
+            echo "# --------------------------------------------------------------------"
+            echo "# 操作指南:"
+            echo "# 1. 在文件上方空白区域输入您的提交信息。"
+            echo "# 2. 完成编辑后，请保存此文件。"
+            echo "# 3. 如何继续提交:"
+            echo "#    - 如果编辑器是由脚本自动打开的 (例如 VS Code):"
+            echo "#      直接关闭此编辑器即可，提交会自动进行。"
+            echo "#    - 如果您是手动打开的此文件 (例如根据终端提示的路径):"
+            echo "#      请返回到终端界面，然后按 Enter 键。"
+            echo "#"
+            echo "# 如需取消本次提交:"
+            echo "#   - 在终端中按 Ctrl+C。"
+            echo "#   - 或者，保留此文件为空 (或只含注释行) 并继续，提交也会自动中止。"
+            echo "# --------------------------------------------------------------------"
+        } > "$commit_msg_file_orig"
+        # --- COMMIT_EDITMSG 内容生成完毕 ---
 
-            done
-        else
-            echo "# (没有检测到暂存的变更)" >> "$commit_msg_file_orig"
-        fi
-        echo "#" >> "$commit_msg_file_orig"
-        
-        # --- 尝试使用 code --wait 打开编辑器 ---
+        # --- 尝试使用配置的或默认的编辑器打开 ---
         local editor_opened_successfully=false
-        if command -v code >/dev/null 2>&1; then
-            print_info "检测到 'code' 命令，尝试使用 VS Code (或兼容 IDE) 打开编辑..."
-            if code --wait "$commit_msg_file_orig"; then
-                # code --wait 成功返回 (用户已关闭文件)
+        local editor_to_use=""
+        local editor_source_msg=""
+
+        # 1. 尝试从 gw 偏好文件读取
+        local gw_editor_pref_file="$HOME/.gw_editor_pref"
+        if [ -f "$gw_editor_pref_file" ] && [ -s "$gw_editor_pref_file" ]; then
+            local preferred_editor_cmd
+            preferred_editor_cmd=$(cat "$gw_editor_pref_file")
+            if [ -n "$preferred_editor_cmd" ]; then
+                local cmd_head_pref
+                cmd_head_pref=$(echo "$preferred_editor_cmd" | awk '{print $1}')
+                if command -v "$cmd_head_pref" >/dev/null 2>&1; then
+                    editor_to_use="$preferred_editor_cmd"
+                    editor_source_msg="gw 偏好设置 ($gw_editor_pref_file)"
+                else
+                    print_warning "gw 偏好文件中配置的编辑器命令 '$cmd_head_pref' 未找到，将尝试其他编辑器。"
+                fi
+            fi
+        fi
+
+        # 2. 如果 gw 偏好未设置或无效，尝试 code --wait
+        if [ -z "$editor_to_use" ] && command -v code >/dev/null 2>&1; then
+            editor_to_use="code --wait"
+            editor_source_msg="'code --wait' 命令"
+        fi
+
+        # 3. 尝试 $VISUAL
+        if [ -z "$editor_to_use" ] && [ -n "$VISUAL" ] && command -v "$VISUAL" >/dev/null 2>&1; then
+            editor_to_use="$VISUAL"
+            editor_source_msg="\$VISUAL 环境变量"
+        fi
+        
+        # 4. 尝试 $EDITOR
+        if [ -z "$editor_to_use" ] && [ -n "$EDITOR" ] && command -v "$EDITOR" >/dev/null 2>&1; then
+            editor_to_use="$EDITOR"
+            editor_source_msg="\$EDITOR 环境变量"
+        fi
+
+        if [ -n "$editor_to_use" ]; then
+            print_info "检测到编辑器 ($editor_source_msg)，尝试使用 '$editor_to_use' 打开编辑..."
+            # 将 $editor_to_use 按空格分割成命令和参数数组
+            local editor_cmd_parts=()
+            # IFS=$' \t\n' # 保险起见，设置IFS，但通常直接数组赋值可以处理空格
+            read -r -a editor_cmd_parts <<< "$editor_to_use"
+            
+            if "${editor_cmd_parts[@]}" "$commit_msg_file_orig"; then
                 editor_opened_successfully=true
-                print_success "VS Code 编辑器已关闭。"
+                print_success "编辑器已关闭。"
             else
                 local exit_code=$?
-                print_warning "'code --wait' 命令执行失败或未正常等待 (退出码: $exit_code)。"
-                print_warning "可能是 VS Code 未正确安装或 code 命令未配置 --wait 支持。"
+                print_warning "编辑器命令 '$editor_to_use' 执行失败或未正常等待 (退出码: $exit_code)。"
                 # Fall through to manual confirmation
             fi
         else
-            print_info "未检测到 'code' 命令。"
-            # 可以选择性地在这里添加对 $EDITOR 的检查和调用
-            # if [ -n "$EDITOR" ]; then ... else ... fi
-            # 但根据用户需求，我们直接回退到打印路径
+            print_info "未检测到可用的自动编辑器配置 (gw 偏好, code, \$VISUAL, \$EDITOR)。"
         fi
         
         # --- 如果编辑器未能自动打开并等待，则回退到手动确认 ---
@@ -231,4 +288,4 @@ cmd_save() {
             return 1
         fi
     fi
-} 
+}

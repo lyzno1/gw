@@ -60,7 +60,7 @@ show_help() {
     printf "  ${BLUE}%-22s${NC} %s\n" "config set remote.default <name>" "- 设置 'gw' 默认远程名 (修改脚本配置)。"
     printf "  ${BLUE}%-22s${NC} %s\n" "remote [...]" "- 管理远程仓库 (原生 remote 包装器)。"
     printf "  ${BLUE}%-22s${NC} %s\n" "gh-create [repo] [...]" "- 在 GitHub 创建仓库并关联 (需 'gh' CLI)。"
-    printf "  ${BLUE}%-22s${NC} %s\n" "ide <name|cmd>" "- 设置 'gw save' 编辑提交信息时默认使用的编辑器。"
+    printf "  ${BLUE}%-22s${NC} %s\n" "ide [name|cmd]" "- 设置或显示 'gw save' 编辑提交信息时默认使用的编辑器。无参数则显示当前设置。"
     printf "  %-22s  ${GRAY}(<name>: vscode,cursor,vim等短名称; <cmd>: \"完整命令 --参数\")${NC}\n" ""
     printf "  %-22s  ${GRAY}(配置保存在 ~/.gw_editor_pref 文件中)${NC}\n" ""
     echo ""

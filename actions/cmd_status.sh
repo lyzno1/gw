@@ -102,5 +102,6 @@ cmd_status() {
         fi
     fi
     
+    echo "" # 在命令输出末尾添加一个空行
     return 0
-} 
+}

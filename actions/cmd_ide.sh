@@ -29,6 +29,24 @@ get_editor_command_from_short_name() {
     esac
 }
 
+# 根据编辑器命令反向查找预定义短名称
+get_short_name_from_editor_command() {
+    local editor_command="$1"
+    # 注意：这里的命令需要和 get_editor_command_from_short_name 中的输出完全匹配
+    case "$editor_command" in
+        "code --wait") echo "vscode";;
+        "cursor --wait") echo "cursor";;
+        "subl --wait") echo "sublime";;
+        "windsurf --wait") echo "windsurf";;
+        "trae --wait") echo "trae";;
+        "vim") echo "vim";;
+        "nvim") echo "nvim";;
+        "nano") echo "nano";;
+        "emacs") echo "emacs";;
+        *) echo "";; # 未找到匹配的短名称
+    esac
+}
+
 # 获取支持的短名称列表的函数 (用于帮助信息)
 get_supported_short_names() {
     # 从 get_editor_command_from_short_name 函数的 case 语句中提取
@@ -39,12 +57,26 @@ get_supported_short_names() {
 
 cmd_ide() {
     if [ -z "$1" ]; then
-        print_info "用法: gw ide <editor_short_name | \"full_editor_command_with_args\">"
-        print_info "此命令用于设置 'gw save' 在编辑提交信息时默认尝试打开的编辑器。"
-        echo -e "当前设置的编辑器命令为: ${CYAN}$(cat "$GW_EDITOR_PREF_FILE" 2>/dev/null || echo "未设置 (将尝试 code/VISUAL/EDITOR)")${NC}"
-        echo "支持的短名称包括: $(get_supported_short_names)" # 使用新函数
-        echo "示例:"
-        echo "  gw ide vscode"
+        print_info "用法: gw ide [<editor_short_name | \"full_editor_command_with_args\">]"
+        print_info "此命令用于设置或查看 'gw save' 在编辑提交信息时默认尝试打开的编辑器。"
+        echo -n "当前设置: " # 使用 echo -n 避免换行
+        if [ -s "$GW_EDITOR_PREF_FILE" ]; then # 检查文件是否存在且非空
+            current_editor_command=$(cat "$GW_EDITOR_PREF_FILE")
+            short_name=$(get_short_name_from_editor_command "$current_editor_command")
+            if [ -n "$short_name" ]; then
+                # 如果找到了短名称，显示短名称和实际命令
+                echo -e "${CYAN}${short_name}${NC} (命令: '${current_editor_command}')"
+            else
+                # 如果是自定义命令，直接显示
+                echo -e "${CYAN}${current_editor_command}${NC} ${YELLOW}(自定义)${NC}"
+            fi
+        else
+            # 如果文件不存在或为空
+            echo -e "${GRAY}未设置 (将尝试 code/VISUAL/EDITOR)${NC}"
+        fi
+        echo "支持的短名称包括: $(get_supported_short_names)"
+        echo "示例 (设置):" # 区分设置和查看
+        echo "  gw ide vscode  # 设置为 VS Code"
         echo "  gw ide vim"
         echo "  gw ide \"myeditor --custom-flag --wait\""
         return 1

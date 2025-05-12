@@ -323,6 +323,10 @@ main() {
             show_help "$@" # Pass remaining args to help
             LAST_COMMAND_STATUS=$?
             ;;
+        ide)
+            cmd_ide "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
         *)
             echo -e "${RED}错误: 未知命令 \"$command\"${NC}"
             echo "请运行 'gw help' 查看可用命令。"
@@ -340,4 +344,3 @@ main() {
 
 # 执行主函数，并将所有参数传递给它
 main "$@"
-

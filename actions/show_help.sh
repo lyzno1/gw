@@ -42,7 +42,7 @@ show_help() {
     printf "  ${GREEN}%-22s${NC} %s\n" "merge <来源> [...]" "- 合并指定分支到当前 (检查未提交变更)。"
     printf "  ${GREEN}%-22s${NC} %s\n" "log [...]" "- 显示提交历史 (自动分页, 支持原生 log 参数)。"
     printf "  ${GREEN}%-22s${NC} %s\n" "diff [...]" "- 显示变更差异 (原生 diff 包装器)。"
-    printf "  ${GREEN}%-22s${NC} %s\n" "reset <目标> [...]" "- ${RED}危险:${NC} 重置 HEAD (对 --hard 有强确认)。"
+    printf "  ${GREEN}%-22s${NC} - ${RED}危险:${NC} %s\n" "reset <目标> [...]" "重置 HEAD (对 --hard 有强确认)。"
     printf "  ${GREEN}%-22s${NC} %s\n" "stash [子命令] [...]" "- 暂存工作区变更 (封装常用 stash 子命令, 对 clear 有确认)。"
     printf "  ${GREEN}%-22s${NC} %s\n" "rebase <目标> [...]" "- Rebase 当前分支 (增强版: 自动更新目标, 处理 stash)。"
     printf "  %-22s  ${GRAY}(支持 -i, --continue, --abort, --skip)${NC}\n" ""

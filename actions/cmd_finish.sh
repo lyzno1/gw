@@ -165,13 +165,18 @@ cmd_finish() {
             # 注意：为了捕获 URL，我们不使用 --web 参数
             print_step "尝试使用 'gh pr create --fill' 创建 PR..."
             local pr_url
+
+            # 使用 process substitution 来捕获输出并检查退出状态
+
             if pr_url=$(gh pr create --base "$MAIN_BRANCH" --head "$current_branch" --fill); then
                 echo -e "${GREEN}Pull Request 创建成功: ${YELLOW}$pr_url${NC}"
 
                 # 如果指定了自动合并
                 if $auto_merge; then
-                    echo -e "${BLUE}检测到 --auto-merge，尝试立即合并 PR...${NC}"
-                    merge_args=("--merge") # 默认使用 merge 提交策略
+
+                    echo -e "${BLUE}检测到 -a|--auto-merge，尝试立即使用 rebase 策略合并 PR...${NC}"
+                    # 强制使用 rebase 策略
+                    merge_args=("--rebase")
 
                     if $delete_branch_after_merge; then
                         echo -e "${BLUE}合并后将删除源分支 (--delete-branch)。${NC}"
@@ -180,11 +185,13 @@ cmd_finish() {
 
                     print_step "执行: gh pr merge $pr_url ${merge_args[*]}"
                     if gh pr merge "$pr_url" "${merge_args[@]}"; then
-                        echo -e "${GREEN}Pull Request 已成功自动合并！${NC}"
+
+                        echo -e "${GREEN}Pull Request 已成功使用 rebase 策略自动合并！${NC}"
                     else
-                        print_error "自动合并 Pull Request 失败。"
-                        echo -e "${CYAN}请检查错误信息、PR 状态（如检查是否通过、是否有冲突）以及您的合并权限。${NC}"
-                        # 即使合并失败，PR 也已创建，所以 finish 流程可以继续，但需要警告用户
+                        print_error "自动合并 Pull Request (使用 rebase) 失败。"
+                        echo -e "${CYAN}请检查错误信息、PR 状态（如检查是否通过、是否有冲突、是否允许 rebase 合并）以及您的合并权限。${NC}"
+                        # 即使合并失败，PR 也已创建
+
                     fi
                 else
                      # 如果没有指定 --auto-merge，提示用户可以在浏览器中查看
@@ -202,7 +209,8 @@ cmd_finish() {
         fi
     else
         echo -e "${CYAN}现在您可以前往 GitHub/GitLab 等平台基于 '$current_branch' 创建 Pull Request / Merge Request。${NC}"
-        echo -e "${PURPLE}(提示: 下次可以使用 'gw finish --pr' 来尝试自动创建 GitHub PR，或使用 'gw finish --auto-merge' 尝试创建并合并)${NC}"
+        echo -e "${PURPLE}(提示: 下次可以使用 'gw finish --pr' 来尝试自动创建 GitHub PR，或使用 'gw finish -a' 尝试创建并 rebase 合并)${NC}"
+        
     fi
 
     # 4. 询问是否切回主分支 (除非指定了 --no-switch)

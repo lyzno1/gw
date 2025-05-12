@@ -22,7 +22,7 @@ show_help() {
     printf "  ${YELLOW}%-22s${NC} %s\n" "sync" "- 同步当前分支: 拉取主分支 ('${MAIN_BRANCH}') 最新并 rebase 当前分支。"
     printf "  %-22s  ${GRAY}(自动处理 stash, 在主分支上仅 pull --rebase)${NC}\n" ""
     printf "  ${YELLOW}%-22s${NC} %s\n" "finish [...]" "- 完成分支: 保存/推送, 可选创建 PR (-p), 可选不切换 (-n)。"
-    printf "  %-22s  ${GRAY}(-p: 创建 PR; -a|--auto-merge: 创建并自动合并 PR)${NC}\n" "" # 添加 -a
+    printf "  %-22s  ${GRAY}(-p: 创建 PR(打开默认浏览器); -a|--auto-merge: 创建 PR 并使用 rebase 策略自动合并)${NC}\n" ""
     printf "  %-22s  ${GRAY}(--delete-branch-after-merge: 自动合并后删除源分支)${NC}\n" ""
     printf "  ${YELLOW}%-22s${NC} %s\n" "rm <branch|all> [-f]" "- 删除本地分支, 并询问是否删除远程同名分支。"
     printf "  %-22s  ${GRAY}(all 模式分阶段处理自动识别和剩余分支, 支持交互式/强制批量)${NC}\n" ""

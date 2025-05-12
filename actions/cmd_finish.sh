@@ -16,6 +16,9 @@ cmd_finish() {
 
     local no_switch=false
     local do_pr=false
+    local auto_merge=false
+    local delete_branch_after_merge=false
+    local merge_args=() # 存储传递给 gh pr merge 的参数
 
     # 手动参数解析，兼容 macOS/Linux
     while [[ $# -gt 0 ]]; do
@@ -28,6 +31,16 @@ cmd_finish() {
                 do_pr=true
                 shift
                 ;;
+           -a|--auto-merge) # 添加 -a 别名
+               auto_merge=true
+               do_pr=true # 自动合并隐含了需要先创建 PR
+               shift
+               ;;
+           --delete-branch-after-merge)
+               delete_branch_after_merge=true
+               # 这个参数只在 --auto-merge 时有意义，但解析时先记录
+               shift
+               ;;
             *)
                 # 其他参数可忽略或警告
                 print_warning "'finish' 命令忽略了额外的参数: $1"
@@ -148,17 +161,48 @@ cmd_finish() {
             echo -e "${CYAN}您仍然需要手动前往 GitHub 创建 Pull Request。${NC}"
         else
             echo -e "${BLUE}正在通过 GitHub CLI 创建 Pull Request...${NC}"
-            # 尝试自动填充标题和正文。用户可以之后编辑。
-            if gh pr create --base "$MAIN_BRANCH" --head "$current_branch" --fill --web; then
-                echo -e "${GREEN}Pull Request 创建成功，并在浏览器中打开。${NC}"
+            # 尝试自动填充标题和正文。
+            # 注意：为了捕获 URL，我们不使用 --web 参数
+            print_step "尝试使用 'gh pr create --fill' 创建 PR..."
+            local pr_url
+            if pr_url=$(gh pr create --base "$MAIN_BRANCH" --head "$current_branch" --fill); then
+                echo -e "${GREEN}Pull Request 创建成功: ${YELLOW}$pr_url${NC}"
+
+                # 如果指定了自动合并
+                if $auto_merge; then
+                    echo -e "${BLUE}检测到 --auto-merge，尝试立即合并 PR...${NC}"
+                    merge_args=("--merge") # 默认使用 merge 提交策略
+
+                    if $delete_branch_after_merge; then
+                        echo -e "${BLUE}合并后将删除源分支 (--delete-branch)。${NC}"
+                        merge_args+=("--delete-branch")
+                    fi
+
+                    print_step "执行: gh pr merge $pr_url ${merge_args[*]}"
+                    if gh pr merge "$pr_url" "${merge_args[@]}"; then
+                        echo -e "${GREEN}Pull Request 已成功自动合并！${NC}"
+                    else
+                        print_error "自动合并 Pull Request 失败。"
+                        echo -e "${CYAN}请检查错误信息、PR 状态（如检查是否通过、是否有冲突）以及您的合并权限。${NC}"
+                        # 即使合并失败，PR 也已创建，所以 finish 流程可以继续，但需要警告用户
+                    fi
+                else
+                     # 如果没有指定 --auto-merge，提示用户可以在浏览器中查看
+                     echo -e "${CYAN}您现在可以在浏览器中查看或手动合并此 PR: ${YELLOW}$pr_url${NC}"
+                     # 尝试在浏览器中打开 (如果用户希望)
+                     if confirm_action "是否在浏览器中打开此 PR？"; then
+                         gh pr view "$pr_url" --web
+                     fi
+                fi
             else
                 print_error "Pull Request 创建失败。请手动检查或尝试在浏览器中创建。"
                 echo -e "${CYAN}您可能需要运行 'gh auth login' 或检查 'gh' 的配置。${NC}"
+                # 如果 PR 创建失败，则无法进行后续步骤，但 finish 流程本身（切换分支等）可能仍需继续
             fi
         fi
     else
         echo -e "${CYAN}现在您可以前往 GitHub/GitLab 等平台基于 '$current_branch' 创建 Pull Request / Merge Request。${NC}"
-        echo -e "${PURPLE}(提示: 下次可以使用 'gw finish --pr' 来尝试自动创建 GitHub PR)${NC}"
+        echo -e "${PURPLE}(提示: 下次可以使用 'gw finish --pr' 来尝试自动创建 GitHub PR，或使用 'gw finish --auto-merge' 尝试创建并合并)${NC}"
     fi
 
     # 4. 询问是否切回主分支 (除非指定了 --no-switch)

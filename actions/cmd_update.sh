@@ -1,7 +1,7 @@
 #!/bin/bash
-# 脚本/actions/cmd_sync.sh
+# 脚本/actions/cmd_update.sh # Renamed from cmd_sync.sh
 #
-# 实现 'sync' 命令逻辑。
+# 实现 'update' 命令逻辑。 # Renamed from 'sync'
 # 依赖:
 # - colors.sh (颜色定义)
 # - utils_print.sh (打印函数)
@@ -10,7 +10,7 @@
 # - git_network_ops.sh (do_pull_with_retry)
 
 # 同步当前分支 (拉取主分支最新代码并 rebase)
-cmd_sync() {
+cmd_update() { # Renamed from cmd_sync
     if ! check_in_git_repo; then return 1; fi
 
     local original_branch

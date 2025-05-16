@@ -208,11 +208,11 @@ main() {
             cmd_fetch "$@"
             LAST_COMMAND_STATUS=$?
             ;;
-        sync)
+        update) # Renamed from sync
             if [ "$#" -ne 0 ]; then
-                _report_arg_error "sync" "命令 'sync' 当前不需要参数。"
+                _report_arg_error "update" "命令 'update' 当前不需要参数。" # Renamed from sync
             else
-                cmd_sync # cmd_sync 内部不处理参数
+                cmd_update # Renamed from cmd_sync
                 LAST_COMMAND_STATUS=$?
              fi
              ;;
@@ -240,12 +240,12 @@ main() {
             cmd_log "$@"
             LAST_COMMAND_STATUS=$?
             ;;
-        new)
-            cmd_new "$@"
+        start) # Renamed from new
+            cmd_start "$@" # Renamed from cmd_new
             LAST_COMMAND_STATUS=$?
             ;;
-        finish)
-            cmd_finish "$@"
+        submit) # Renamed from finish
+            cmd_submit "$@" # Renamed from cmd_finish
             LAST_COMMAND_STATUS=$?
             ;;
         rebase)

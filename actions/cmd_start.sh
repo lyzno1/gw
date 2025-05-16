@@ -1,7 +1,7 @@
 #!/bin/bash
-# 脚本/actions/gw_new.sh
+# 脚本/actions/cmd_start.sh # Renamed from gw_new.sh
 #
-# 实现 'new' (创建新分支) 命令逻辑。
+# 实现 'start' (创建新分支并开始工作) 命令逻辑。 # Renamed from 'new'
 # 依赖:
 # - colors.sh (颜色定义)
 # - utils_print.sh (打印函数)
@@ -11,7 +11,7 @@
 # - help.sh (show_help - 如果解析参数失败)
 
 # 创建并切换到新分支
-cmd_new() {
+cmd_start() { # Renamed from cmd_new
     if ! check_in_git_repo; then return 1; fi
 
     local changes_were_stashed_by_cmd_new=false
@@ -22,7 +22,7 @@ cmd_new() {
         echo ""
         echo -e "${YELLOW}在创建新分支前，建议处理这些变更:${NC}"
         echo -e "1) ${GREEN}暂存 (Stash) 当前变更并继续${NC}"
-        echo -e "2) ${RED}取消 'cmd new' 操作${NC}"
+        echo -e "2) ${RED}取消 'gw start' 操作${NC}"
         local choice_stash
         read -r -p "请选择操作 [1-2]: " choice_stash
 
@@ -31,17 +31,17 @@ cmd_new() {
                 local stash_branch_name
                 stash_branch_name=$(get_current_branch_name)
                 if [ -z "$stash_branch_name" ]; then stash_branch_name="unknown_branch"; fi
-                print_step "正在暂存当前变更 (git stash save 'WIP on $stash_branch_name before cmd new')..."
-                if git stash save "WIP on $stash_branch_name before cmd new"; then
+                print_step "正在暂存当前变更 (git stash save 'WIP on $stash_branch_name before gw start')..."
+                if git stash save "WIP on $stash_branch_name before gw start"; then
                     print_success "变更已成功暂存。"
                     changes_were_stashed_by_cmd_new=true
                 else
-                    print_error "暂存变更失败。'cmd new' 操作已取消。"
+                    print_error "暂存变更失败。'gw start' 操作已取消。"
                     return 1
                 fi
                 ;;
             2|*)
-                echo "'cmd new' 操作已取消。"
+                echo "'gw start' 操作已取消。"
                 return 1
                 ;;
         esac
@@ -63,9 +63,9 @@ cmd_new() {
 
     if $use_gnu_getopt; then
         # GNU getopt 逻辑
-        parsed_args=$(getopt -o l --long local,base: -n 'cmd new' -- "$@")
+        parsed_args=$(getopt -o l --long local,base: -n 'gw start' -- "$@") # Renamed from 'cmd new'
         if [ $? != 0 ]; then
-            echo "用法: cmd new <new_branch_name> [--local] [--base <base_branch>]"
+            echo "用法: gw start <new_branch_name> [--local] [--base <base_branch>]"
             return 1
         fi
         eval set -- "$parsed_args"
@@ -90,7 +90,7 @@ cmd_new() {
         done
         if [ -z "$1" ]; then
             print_error "错误：需要提供新分支名称。"
-            echo "用法: cmd new <new_branch_name> [--local] [--base <base_branch>]"
+            echo "用法: gw start <new_branch_name> [--local] [--base <base_branch>]"
             return 1
         fi
         new_branch_name="$1"
@@ -101,20 +101,20 @@ cmd_new() {
                  shift
              fi
              if [ $# -gt 0 ]; then
-                print_warning "忽略了 'new' 命令无法识别的额外参数 (GNU getopt): $@"
+                print_warning "忽略了 'start' 命令无法识别的额外参数 (GNU getopt): $@"
              fi
         fi
     else
         # getopt 未找到或非 GNU getopt，使用基础参数解析
         if command -v getopt >/dev/null 2>&1; then
-             print_warning "检测到非 GNU getopt，将使用基础参数解析。长选项如 --base 可能不受支持或需按 'cmd new <branch> [base] --local' 格式。建议安装 GNU getopt (如 macOS: brew install gnu-getopt)。"
+             print_warning "检测到非 GNU getopt，将使用基础参数解析。长选项如 --base 可能不受支持或需按 'gw start <branch> [base] --local' 格式。建议安装 GNU getopt (如 macOS: brew install gnu-getopt)。"
         else
              print_warning "getopt 命令未找到，使用基础参数解析。这可能不支持所有高级选项。"
         fi
         
         if [ -z "$1" ]; then
             print_error "错误：需要提供新分支名称。"
-            echo "用法 (基础解析): cmd new <branch_name> [base_branch] [--local]"
+            echo "用法 (基础解析): gw start <branch_name> [base_branch] [--local]"
             return 1
         fi
         new_branch_name="$1"
@@ -132,7 +132,7 @@ cmd_new() {
         fi
         
         if [ $# -gt 0 ]; then
-            print_warning "忽略了 'new' 命令无法识别的额外参数 (基础解析): $@"
+            print_warning "忽略了 'start' 命令无法识别的额外参数 (基础解析): $@"
         fi
     fi
 
@@ -233,7 +233,7 @@ cmd_new() {
 
     if $changes_were_stashed_by_cmd_new; then
         echo "" # Add a newline for better readability
-        print_info "之前在此次 'cmd_new' 操作开始时，有一些变更被自动暂存了。"
+        print_info "之前在此次 'gw start' 操作开始时，有一些变更被自动暂存了。"
         if confirm_action "是否尝试在新分支 '${new_branch_name}' 上应用 (git stash pop) 这些暂存的变更？"; then
             print_step "尝试应用暂存 (git stash pop)..."
             if git stash pop; then

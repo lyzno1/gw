@@ -1,7 +1,7 @@
 #!/bin/bash
-# 脚本/actions/cmd_finish.sh
+# 脚本/actions/cmd_submit.sh # Renamed from cmd_finish.sh
 #
-# 实现 'finish' 命令逻辑。
+# 实现 'submit' 命令逻辑。 # Renamed from 'finish'
 # 依赖:
 # - colors.sh (颜色定义)
 # - utils_print.sh (打印函数)
@@ -11,7 +11,7 @@
 # - cmd_commit.sh (依赖 cmd_commit 函数，确保其已被 sourcing)
 
 # 完成当前分支工作 (准备 PR/MR)
-cmd_finish() {
+cmd_submit() { # Renamed from cmd_finish
     if ! check_in_git_repo; then return 1; fi
 
     local no_switch=false
@@ -43,7 +43,7 @@ cmd_finish() {
                ;;
             *)
                 # 其他参数可忽略或警告
-                print_warning "'finish' 命令忽略了额外的参数: $1"
+                print_warning "'submit' 命令忽略了额外的参数: $1" # Renamed from 'finish'
                 shift
                 ;;
         esac
@@ -54,7 +54,7 @@ cmd_finish() {
     if [ $? -ne 0 ]; then return 1; fi
 
     if [ "$current_branch" = "$MAIN_BRANCH" ]; then
-        print_warning "您当前在主分支 ($MAIN_BRANCH)。'finish' 命令通常用于功能分支。"
+        print_warning "您当前在主分支 ($MAIN_BRANCH)。'submit' 命令通常用于功能分支。" # Renamed from 'finish'
         if ! confirm_action "是否仍要继续执行推送主分支的操作？"; then
             echo "操作已取消。"
             return 1
@@ -121,7 +121,7 @@ cmd_finish() {
             read -r new_remote_url
             
             if [ -z "$new_remote_url" ]; then
-                print_error "未提供 URL，无法添加远程仓库。Finish 操作已取消。"
+                print_error "未提供 URL，无法添加远程仓库。Submit 操作已取消。"
                 return 1
             fi
             
@@ -129,7 +129,7 @@ cmd_finish() {
             if git remote add "$remote_to_push_to" "$new_remote_url"; then
                 print_success "远程仓库 '$remote_to_push_to' 添加成功。"
             else
-                print_error "添加远程仓库 '$remote_to_push_to' 失败。请检查错误信息或手动添加。Finish 操作已取消。"
+                print_error "添加远程仓库 '$remote_to_push_to' 失败。请检查错误信息或手动添加。Submit 操作已取消。"
                 return 1
             fi
         else
@@ -146,7 +146,7 @@ cmd_finish() {
         print_error "核心函数 'do_push_with_retry' 未找到。请检查脚本完整性。"
         return 127
     fi
-    # cmd_finish 通常不接受 push 的额外参数，所以直接调用不带参数的 do_push_with_retry
+    # cmd_submit 通常不接受 push 的额外参数，所以直接调用不带参数的 do_push_with_retry
     # 它会自动推送当前分支到默认远程并设置上游（如果需要）
     if ! do_push_with_retry; then 
         print_error "推送分支失败。请检查错误信息。"
@@ -204,12 +204,12 @@ cmd_finish() {
             else
                 print_error "Pull Request 创建失败。请手动检查或尝试在浏览器中创建。"
                 echo -e "${CYAN}您可能需要运行 'gh auth login' 或检查 'gh' 的配置。${NC}"
-                # 如果 PR 创建失败，则无法进行后续步骤，但 finish 流程本身（切换分支等）可能仍需继续
+                # 如果 PR 创建失败，则无法进行后续步骤，但 submit 流程本身（切换分支等）可能仍需继续
             fi
         fi
     else
         echo -e "${CYAN}现在您可以前往 GitHub/GitLab 等平台基于 '$current_branch' 创建 Pull Request / Merge Request。${NC}"
-        echo -e "${PURPLE}(提示: 下次可以使用 'gw finish --pr' 来尝试自动创建 GitHub PR，或使用 'gw finish -a' 尝试创建并 rebase 合并)${NC}"
+        echo -e "${PURPLE}(提示: 下次可以使用 'gw submit --pr' 来尝试自动创建 GitHub PR，或使用 'gw submit -a' 尝试创建并 rebase 合并)${NC}"
         
     fi
 

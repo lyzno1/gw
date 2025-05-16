@@ -136,7 +136,7 @@ cmd_config() {
     fi
 
     # Handler for: gw config <name> <email> --global (GLOBAL shortcut)
-    if [ "$#" -eq 3 ] && [[ ! "$1" =~ ^- && ! "$2" =~ ^- && "$3" == "--global" ]]; then
+    if [ "$#" -eq 3 ] && [[ ! "$1" =~ ^- && ! "$2" =~ ^- && ( "$3" == "--global" || "$3" == "-g" ) ]]; then
         local username="$1"
         local email="$2"
         

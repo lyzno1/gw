@@ -59,7 +59,7 @@ cmd_help() { # Renamed from show_help
     printf "  ${BLUE}%-22s${NC} %s\n" "config set-url <name> <url>" "- 设置指定远程的 URL (若不存在则添加)。"
     printf "  ${BLUE}%-22s${NC} %s\n" "config add-remote <name> <url>" "- 添加新的远程仓库。"
     printf "  ${BLUE}%-22s${NC} %s\n" "config list | show" "- 显示 'gw' 脚本配置和部分Git用户配置。"
-    printf "  ${BLUE}%-22s${NC} %s\n" "config <usr> <eml> [--g]" "- 快速设置本地(默认)或全局(--g)用户名/邮箱。"
+    printf "  ${BLUE}%-22s${NC} %s\n" "config <usr> <eml> [--global|-g]" "- 快速设置本地(默认)或全局(--global或-g)用户名/邮箱。"
     printf "  ${BLUE}%-22s${NC} %s\n" "config [...]" "- 其他参数将透传给原生 'git config' (例如 'gw config user.name ...')。"
     printf "  ${BLUE}%-22s${NC} %s\n" "remote [...]" "- 管理远程仓库 (原生 remote 包装器)。"
     printf "  ${BLUE}%-22s${NC} %s\n" "gh-create [repo] [...]" "- 在 GitHub 创建仓库并关联 (需 'gh' CLI)。"

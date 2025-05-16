@@ -60,6 +60,7 @@ Gw 提供了一系列精心设计的命令来覆盖您开发周期的方方面�
 *   `gw config set-url <name> <url>`: 设置或添加指定名称的远程仓库 URL。
 *   `gw config add-remote <name> <url>`: 添加一个新的远程仓库。
 *   `gw config list` (或 `show`): 显示 `gw` 脚本相关的生效配置 (如默认远程名、主分支名、编辑器偏好) 及部分 Git 用户配置。
+*   `gw config <用户名> <邮箱> [--global]`: **[快捷方式]** 快速设置本地或全局的 Git 用户名和邮箱。
 *   `gw config [...]`: 其他参数将直接透传给原生 `git config` (例如 `gw config user.name "Your Name"`)。
 *   `gw ide [name|cmd]`: **[独立命令]** 设置或显示 `gw save` 编辑提交信息时默认使用的编辑器。
     *   无参数调用 `gw ide` 可查看当前设置和可用短名称。

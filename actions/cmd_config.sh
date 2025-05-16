@@ -135,6 +135,75 @@ cmd_config() {
         return 0
     fi
 
+    # Handler for: gw config <name> <email> --global (GLOBAL shortcut)
+    if [ "$#" -eq 3 ] && [[ ! "$1" =~ ^- && ! "$2" =~ ^- && "$3" == "--global" ]]; then
+        local username="$1"
+        local email="$2"
+        
+        print_step "正在配置全局的 user.name 和 user.email..."
+        
+        local success=true
+        if git config --global user.name "$username"; then
+            print_success "全局 user.name 已设置为: $username"
+        else
+            print_error "设置全局 user.name 失败。"
+            success=false
+        fi
+        
+        if $success; then # Only proceed if name setting was successful
+            if git config --global user.email "$email"; then
+                print_success "全局 user.email 已设置为: $email"
+            else
+                print_error "设置全局 user.email 失败。"
+                success=false
+            fi
+        fi
+        
+        if $success; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+
+    # Handler for: gw config <name> <email> (LOCAL shortcut)
+    if [ "$#" -eq 2 ] && [[ ! "$1" =~ ^- && ! "$2" =~ ^- ]]; then
+        # This specific shortcut requires being in a repo.
+        if ! check_in_git_repo; then
+            print_error "快速设置本地用户名/邮箱的操作应在 Git 仓库中运行。"
+            return 1
+        fi
+        local username="$1"
+        local email="$2"
+        
+        print_step "正在配置本地仓库的 user.name 和 user.email..."
+        local op_success=true
+        if git config user.name "$username"; then # Implicitly local
+            print_success "本地 user.name 已设置为: $username"
+        else
+            print_error "设置本地 user.name 失败。"
+            op_success=false
+        fi
+
+        if $op_success; then # Only proceed if name setting was successful
+            if git config user.email "$email"; then # Implicitly local
+                print_success "本地 user.email 已设置为: $email"
+            else
+                print_error "设置本地 user.email 失败。"
+                op_success=false
+            fi
+        fi
+        
+        if $op_success; then
+            echo -e "${CYAN}提示: 如果需要全局配置，请使用:${NC}"
+            echo "  gw config \"$username\" \"$email\" --global"
+            echo "  (或直接使用 'gw config --global user.name \"$username\"' 等原生命令)"
+            return 0
+        else
+            return 1
+        fi
+    fi
+
     # Fallback: Pass all other arguments to git config
     # This will now also handle `gw config user.name "Name"` etc.
     print_info "执行: git config $@"

@@ -18,7 +18,7 @@
 **【核心设计理念：流畅、规范、健壮、智能】**
 
 1.  **流程驱动，一键直达 (Workflow-Centric Automation):**
-    `gw` 不仅仅是命令别名，它**内嵌了一套推荐的开发生命周期**。从 `gw new`（智能创建并同步分支）到 `gw sync`（一键保持与主干同步并采用 rebase 保持历史整洁），再到 `gw finish`（自动化完成、推送、准备PR），`gw` 将多步操作融合成**单一、符合直觉的命令**，引导您顺畅地完成开发循环。
+    `gw` 不仅仅是命令别名，它**内嵌了一套推荐的开发生命周期**。从 `gw start`（智能创建并同步分支开始工作）到 `gw update`（一键保持与主干同步并采用 rebase 保持历史整洁），再到 `gw submit`（自动化提交工作成果、推送、准备PR），`gw` 将多步操作融合成**单一、符合直觉的命令**，引导您顺畅地完成开发循环。
 2.  **体验至上，交互友好 (User Experience First):**
     告别冰冷的黑白终端！`gw` 采用**丰富的彩色高亮**，清晰标示操作状态。
     在关键节点（如切换分支有未提交变更、删除分支等）提供**智能交互提示与确认**，有效防止误操作。
@@ -27,12 +27,12 @@
     内置强大的 `push`/`pull` **自动重试机制**，显著提高在不稳定网络环境下的操作成功率，让您不再为此分心。
     操作前的**安全检查**（如未提交检查）进一步保障代码和仓库的稳定。所有核心推送操作（包括旧版别名）均享有此保障。
 4.  **规范协作，整洁历史 (Standardization & Clean History):**
-    通过 `gw sync` 默认采用 `rebase` 策略，`gw` 鼓励团队成员在合并前整理提交，最终**汇聚成清晰、线性的主干历史**，极大提升代码库的可维护性和可读性。
+    通过 `gw update` (默认拉取策略通常为 rebase) ，`gw` 鼓励团队成员在合并前整理提交，最终**汇聚成清晰、线性的主干历史**，极大提升代码库的可维护性和可读性。
     为团队提供一套**标准、易学的命令集**，降低沟通成本，加速新成员融入。
 5.  **可扩展与可配置 (Extensible & Configurable)**：
     *   模块化的命令设计（`actions/` 目录），方便添加新的自定义命令。
     *   核心配置（如默认主分支名、远程名、重试次数）可通过环境变量或配置文件 (`core_utils/config_vars.sh`) 进行调整。
-    *   新增 `gw config set remote.default <name>` 允许用户动态更新脚本对默认远程的认知。
+    *   新增 `gw config` 系列命令允许用户动态更新远程仓库URL，并通过 `gw ide` 配置默认编辑器。
 6.  **渐进式学习 (Progressive Learning)**：对于 Git 新手，Gw 提供了一层简化的抽象；对于有经验的用户，Gw 依然允许他们通过参数透传的方式使用原生 Git 的高级功能，并从中受益于 Gw 增强的流程和反馈。
 
 
@@ -56,36 +56,41 @@ Gw 提供了一系列精心设计的命令来覆盖您开发周期的方方面�
 
 ### 仓库初始化与配置
 *   `gw init [...]`: 快速初始化 Git 仓库，可附加原生 `git init` 参数。
-*   `gw config <user> <email>`: 一键设置本地仓库的用户名和邮箱。
-*   `gw config set remote.default <name>`: **[新]** 更新 Gw 脚本内部配置的默认远程仓库名称。
-*   `gw config [...]`: 无缝透传至原生 `git config`，支持所有原生配置操作。
-*   `gw ide <name|cmd>`: **[新]** 设置 `gw save` 在编辑提交信息时默认使用的编辑器。
-    *   `<name>` 可以是预定义的短名称（如 `vscode`, `cursor`, `vim` 等，不区分大小写）。
-    *   `<cmd>` 可以是用户提供的完整编辑器命令字符串（如果包含空格，需用引号包围，例如 `"myeditor --wait"`）。
-    *   配置保存在用户主目录下的 `~/.gw_editor_pref` 文件中。
+*   `gw config set-url <url>`: 设置或添加名为 `origin` (默认) 的远程仓库 URL。
+*   `gw config set-url <name> <url>`: 设置或添加指定名称的远程仓库 URL。
+*   `gw config add-remote <name> <url>`: 添加一个新的远程仓库。
+*   `gw config list` (或 `show`): 显示 `gw` 脚本相关的生效配置 (如默认远程名、主分支名、编辑器偏好) 及部分 Git 用户配置。
+*   `gw config [...]`: 其他参数将直接透传给原生 `git config` (例如 `gw config user.name "Your Name"`)。
+*   `gw ide [name|cmd]`: **[独立命令]** 设置或显示 `gw save` 编辑提交信息时默认使用的编辑器。
+    *   无参数调用 `gw ide` 可查看当前设置和可用短名称。
+    *   `<name>`: 预定义的编辑器短名称 (如 `vscode`, `vim`, `cursor` 等)。
+    *   `<cmd>`: 完整的编辑器命令字符串 (如 `"code --wait"`)。
+    *   配置保存在用户主目录的 `~/.gw_editor_pref` 文件中。
 *   `gw remote [...]`: 原生 `git remote` 包装器，方便管理远程仓库。
 *   `gw gh-create [repo] [...]`: **[增强]** 在 GitHub 上创建新仓库，并自动关联到本地，支持设置可见性、描述、自定义本地远程名，并处理远程名已存在的情况。
 
 ### 核心开发工作流
-*   `gw new <branch> [--base <base>] [--local]`:
-    *   基于指定的基础分支（默认主分支）创建并切换到新的开发分支。
-    *   自动从远程拉取基础分支的最新代码（使用 rebase）。
+*   `gw start <branch> [--base <base>] [--local]`: (原 `gw new`)
+    *   基于指定的基础分支（默认主分支，其配置值可通过 `gw config list` 查看）创建并切换到新的开发分支。
+    *   自动从远程拉取基础分支的最新代码（默认通常为 rebase 策略）。
     *   **[增强]** 如果当前有未提交更改，会提示用户暂存 (stash) 并可在新分支创建后尝试恢复。
     *   `--local`: 跳过拉取，基于本地基础分支状态创建。
 *   `gw save [-m "msg"] [-e] [files...]`:
     *   快速添加指定文件（默认全部已修改/新增文件）并提交。
-    *   无 `-m` 或 `-e` (强制编辑器) 时，进入交互式提交信息编辑模式。脚本会优先使用通过 `gw ide` 配置的编辑器，然后依次尝试 `code --wait` (若可用)、`$VISUAL` 环境变量、`$EDITOR` 环境变量，如果都找不到，则会提示您手动打开 `.git/COMMIT_EDITMSG` 文件进行编辑。模板内容也经过优化，采用英文提示和更清晰的排版。
-*   `gw sync`:
-    *   **[增强]** 智能同步当前分支：
-        *   若在特性分支：自动切换到主分支，拉取最新（使用 rebase），切换回特性分支，然后将特性分支 rebase 到最新的主分支上。
-        *   若在主分支：直接拉取远程主分支的最新代码（使用 rebase）。
+    *   无 `-m` 或 `-e` (强制编辑器) 时，进入交互式提交信息编辑模式。脚本会优先使用通过 `gw ide` 配置的编辑器，然后依次尝试 `code --wait` (若可用)、`$VISUAL` 环境变量、`$EDITOR` 环境变量，如果都找不到，则会提示您手动打开 `.git/COMMIT_EDITMSG` 文件进行编辑。模板内容也经过优化。
+*   `gw update`: (原 `gw sync`)
+    *   **[增强]** 智能更新当前分支：
+        *   若在特性分支：自动切换到主分支，拉取最新（默认通常为 rebase 策略），切换回特性分支，然后将特性分支 rebase 到最新的主分支上。
+        *   若在主分支：直接拉取远程主分支的最新代码（默认通常为 rebase 策略）。
         *   **[增强]** 操作前检查未提交更改，并提示用户暂存。
-*   `gw finish [--no-switch] [--pr]`:
-    *   完成当前分支的开发周期。
+*   `gw submit [--no-switch] [--pr] [-a|--auto-merge] [--delete-branch-after-merge]`: (原 `gw finish`)
+    *   提交当前分支的开发工作成果。
     *   **[增强]** 自动检查并提示处理未提交的变更（通过 `gw save` 逻辑）。
     *   推送当前分支到远程（自动处理 `-u`）。
     *   `--pr`: 推送后尝试使用 `gh` CLI 创建 GitHub Pull Request。
     *   `--no-switch`: 完成后不自动切换回主分支。
+    *   `-a|--auto-merge`: 创建 PR 后尝试自动合并 (rebase 策略)。
+    *   `--delete-branch-after-merge`: 自动合并成功后删除源分支。
 *   `gw main` / `gw master [...]`: 快速推送主分支到远程（可附加原生 `git push` 参数）。
 
 ### 常用 Git 操作便捷封装
@@ -94,7 +99,7 @@ Gw 提供了一系列精心设计的命令来覆盖您开发周期的方方面�
 *   `gw add-all`: 执行 `git add -A`。
 *   `gw commit [...]`: 原生 `git commit` 包装器，保留其所有参数功能，并与 `gw save` 的提交信息处理逻辑一致。
 *   `gw pull [remote] [branch] [...]`:
-    *   **[核心增强]** 默认使用 `--rebase` 策略拉取远程更新，保持历史线性。
+    *   **[核心增强]** 默认使用 `--rebase` 策略拉取远程更新（除非参数覆盖），保持历史线性。
     *   用户可通过 `--no-rebase` 或 `--ff-only` 等参数覆盖默认行为。
     *   内置网络重试机制。
 *   `gw push [remote] [branch] [...]`:
@@ -175,8 +180,8 @@ Gw 提供了一系列精心设计的命令来覆盖您开发周期的方方面�
     如果看到帮助信息，说明安装成功！
 
 5.  **（可选）安装依赖**:
-    *   `gh` (GitHub CLI): `gw gh-create` 和 `gw finish --pr` 功能需要。请参考 [GitHub CLI 安装文档](https://cli.github.com/)。
-    *   `GNU getopt`: 在 macOS 等使用 BSD getopt 的系统上，为了获得 `gw new` 等命令的完整长选项支持（如 `--base`），建议安装 GNU getopt。
+    *   `gh` (GitHub CLI): `gw gh-create` 和 `gw submit --pr` 功能需要。请参考 [GitHub CLI 安装文档](https://cli.github.com/)。
+    *   `GNU getopt`: 在 macOS 等使用 BSD getopt 的系统上，为了获得 `gw start` 等命令的完整长选项支持（如 `--base`），建议安装 GNU getopt。
         ```bash
         brew install gnu-getopt 
         # 可能需要将其添加到 PATH，或者脚本会提示使用基础参数解析
@@ -189,7 +194,7 @@ Gw 提供了一系列精心设计的命令来覆盖您开发周期的方方面�
 1.  **提交 Issue**: 发现 bug 或有功能建议？请在项目的 Issue 跟踪系统中提交。
 2.  **发起 Pull Request**:
     *   Fork 本仓库 (`https://github.com/lyzno1/gw.git`)。
-    *   创建您的特性分支 (`gw new feat/amazing-feature`)。
+    *   创建您的特性分支 (`gw start feat/amazing-feature`)。
     *   遵循项目的 [Git 提交信息规范](COMMIT_CONVENTION.md) 进行提交。
     *   确保您的更改通过了所有测试（如果有）。
     *   推送您的分支 (`gw push origin feat/amazing-feature`)。
@@ -208,9 +213,9 @@ Gw 提供了一系列精心设计的命令来覆盖您开发周期的方方面�
     > 你不是在执行一系列 Git 命令，而是在完成一个「开发任务流程」。
 
     例如：
-    *   `gw new` 不是简单的 `git checkout -b`，它包含了拉取主分支、选择基础分支、设置规范名称；
-    *   `gw finish` 不是简单的 `git push`，它表达的是「我完成了这个分支的工作」这一业务意图；
-    *   `gw sync` 本质上是维护分支与主干同步的一种"健康操作"。
+    *   `gw start` 不是简单的 `git checkout -b`，它包含了拉取主分支、选择基础分支、设置规范名称；
+    *   `gw submit` 不是简单的 `git push`，它表达的是「我完成了这个分支的工作并提交成果」这一业务意图；
+    *   `gw update` 本质上是维护分支与主干同步的一种"健康操作"。
 
     每一个 `gw` 命令代表的不是 Git 的语法结构，而是**你在开发周期中的位置和动作意图**。
 
@@ -230,7 +235,7 @@ Gw 提供了一系列精心设计的命令来覆盖您开发周期的方方面�
 
 3.  **统一命令入口，压缩认知负担**
 
-    `gw` 使用统一的入口 + 子命令模式（如 `gw new`, `gw sync`），好处是：
+    `gw` 使用统一的入口 + 子命令模式（如 `gw start`, `gw update`），好处是：
 
     *   不需要记忆所有复杂的 Git 子命令（尤其是组合操作）；
     *   能统一做参数解析、错误处理、环境配置等；
@@ -256,7 +261,7 @@ Gw 提供了一系列精心设计的命令来覆盖您开发周期的方方面�
 
 1.  **交互细节进一步优化**
     *   `gw commit` 增加提交模板与规范校验（如 Conventional Commits）；
-    *   `gw new` 支持任务号自动识别、分支命名规范插件。
+    *   `gw start` 支持任务号自动识别、分支命名规范插件。
 2.  **错误修复辅助**
     *   Rebase 失败时的智能修复流程引导；
     *   本地和远程状态不一致时的自动处理建议。

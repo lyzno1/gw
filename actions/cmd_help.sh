@@ -7,22 +7,22 @@
 # - config_vars.sh (配置变量, 用于显示 MAIN_BRANCH, REMOTE_NAME 等默认值)
 
 # 显示帮助信息
-show_help() {
+cmd_help() { # Renamed from show_help
     echo -e "${BOLD}Git 工作流助手 (gw) v3.0 使用说明${NC}"
     echo "用法: gw <命令> [参数...]"
     echo ""
     
     # --- 核心工作流命令 ---
     echo -e "${CYAN}⭐ 核心工作流命令 (Core Workflow) ⭐${NC}"
-    printf "  ${YELLOW}%-22s${NC} %s\n" "new <branch>" "- 从基础分支 (默认: ${MAIN_BRANCH}) 创建并切换新分支。"
+    printf "  ${YELLOW}%-22s${NC} %s\n" "start <branch>" "- 从基础分支 (默认: ${MAIN_BRANCH}) 创建新分支并开始工作。"
     printf "  %-22s  ${GRAY}(自动处理 stash, 更新基础分支, 可用 --base, --local)${NC}\n" ""
     printf "  ${YELLOW}%-22s${NC} %s\n" "save [-m msg] [-e] [f...]" "- 快速保存变更 (add+commit)。默认添加全部变更。"
-    printf "  %-22s  ${GRAY}(无 -m/-e 时优先尝试 'code --wait' 或提示编辑 COMMIT_EDITMSG)${NC}\n" ""
+    printf "  %-22s  ${GRAY}(无 -m/-e 时使用 'gw ide' 配置的编辑器或VISUAL/EDITOR)${NC}\n" ""
     printf "  ${YELLOW}%-22s${NC} %s\n" "sp [-m msg] [-e] [f...]" "- 快速保存所有变更并推送到远程 (save && push)。"
-    printf "  ${YELLOW}%-22s${NC} %s\n" "sync" "- 同步当前分支: 拉取主分支 ('${MAIN_BRANCH}') 最新并 rebase 当前分支。"
-    printf "  %-22s  ${GRAY}(自动处理 stash, 在主分支上仅 pull --rebase)${NC}\n" ""
-    printf "  ${YELLOW}%-22s${NC} %s\n" "finish [...]" "- 完成分支: 保存/推送, 可选创建 PR (-p), 可选不切换 (-n)。"
-    printf "  %-22s  ${GRAY}(-p: 创建 PR(打开默认浏览器); -a|--auto-merge: 创建 PR 并使用 rebase 策略自动合并)${NC}\n" ""
+    printf "  ${YELLOW}%-22s${NC} %s\n" "update" "- 更新当前分支: 若为特性分支则与主干同步, 若为主干则拉取。"
+    printf "  %-22s  ${GRAY}(自动处理 stash, 默认拉取策略通常为 rebase)${NC}\n" ""
+    printf "  ${YELLOW}%-22s${NC} %s\n" "submit [...]" "- 提交分支工作成果: 保存/推送, 可选创建 PR (-p), 可选不切换 (-n)。"
+    printf "  %-22s  ${GRAY}(-p: 创建 PR; -a|--auto-merge: 创建 PR 并 rebase 合并)${NC}\n" ""
     printf "  %-22s  ${GRAY}(--delete-branch-after-merge: 自动合并后删除源分支)${NC}\n" ""
     printf "  ${YELLOW}%-22s${NC} %s\n" "rm <branch|all> [-f]" "- 删除本地分支, 并询问是否删除远程同名分支。"
     printf "  %-22s  ${GRAY}(all 模式分阶段处理自动识别和剩余分支, 支持交互式/强制批量)${NC}\n" ""
@@ -39,7 +39,7 @@ show_help() {
     printf "  ${GREEN}%-22s${NC} %s\n" "pull [...]" "- 拉取更新 (带重试, 默认使用 --rebase)。"
     printf "  ${GREEN}%-22s${NC} %s\n" "fetch [...]" "- 获取远程更新，不合并 (原生 fetch 包装器)。"
     printf "  ${GREEN}%-22s${NC} %s\n" "branch [...]" "- (无参数) 显示本地分支; (带参数) 原生 'git branch' 操作。"
-    printf "  %-22s  ${GRAY}(推荐: 创建用 'gw new', 删除用 'gw rm')${NC}\n" ""
+    printf "  %-22s  ${GRAY}(推荐: 创建用 'gw start', 删除用 'gw rm')${NC}\n" ""
     printf "  ${GREEN}%-22s${NC} %s\n" "checkout <分支>" "- 切换分支 (检查未提交变更, 无参数可交互选择)。"
     printf "  ${GREEN}%-22s${NC} %s\n" "merge <来源> [...]" "- 合并指定分支到当前 (检查未提交变更)。"
     printf "  ${GREEN}%-22s${NC} %s\n" "log [...]" "- 显示提交历史 (自动分页, 支持原生 log 参数)。"
@@ -55,13 +55,15 @@ show_help() {
     # --- 仓库管理与配置 ---
     echo -e "${CYAN}🚀 仓库管理与配置 (Repository & Config) 🚀${NC}"
     printf "  ${BLUE}%-22s${NC} %s\n" "init [...]" "- 初始化 Git 仓库 (原生 init 包装器)。"
-    printf "  ${BLUE}%-22s${NC} %s\n" "config <usr> <eml> [--g]" "- 快速设置本地(默认)或全局(--g)用户名/邮箱。"
-    printf "  ${BLUE}%-22s${NC} %s\n" "config [...]" "- 执行原生 git config 命令。"
-    printf "  ${BLUE}%-22s${NC} %s\n" "config set remote.default <name>" "- 设置 'gw' 默认远程名 (修改脚本配置)。"
+    printf "  ${BLUE}%-22s${NC} %s\n" "config set-url <url>" "- 设置 'origin' 的 URL (若不存在则添加)。"
+    printf "  ${BLUE}%-22s${NC} %s\n" "config set-url <name> <url>" "- 设置指定远程的 URL (若不存在则添加)。"
+    printf "  ${BLUE}%-22s${NC} %s\n" "config add-remote <name> <url>" "- 添加新的远程仓库。"
+    printf "  ${BLUE}%-22s${NC} %s\n" "config list | show" "- 显示 'gw' 脚本配置和部分Git用户配置。"
+    printf "  ${BLUE}%-22s${NC} %s\n" "config [...]" "- 其他参数将透传给原生 'git config' (例如 'gw config user.name ...')。"
     printf "  ${BLUE}%-22s${NC} %s\n" "remote [...]" "- 管理远程仓库 (原生 remote 包装器)。"
     printf "  ${BLUE}%-22s${NC} %s\n" "gh-create [repo] [...]" "- 在 GitHub 创建仓库并关联 (需 'gh' CLI)。"
-    printf "  ${BLUE}%-22s${NC} %s\n" "ide [name|cmd]" "- 设置或显示 'gw save' 编辑提交信息时默认使用的编辑器。无参数则显示当前设置。"
-    printf "  %-22s  ${GRAY}(<name>: vscode,cursor,vim等短名称; <cmd>: \"完整命令 --参数\")${NC}\n" ""
+    printf "  ${BLUE}%-22s${NC} %s\n" "ide [name|cmd]" "- 设置或显示 'gw save' 编辑提交信息时默认使用的编辑器。"
+    printf "  %-22s  ${GRAY}(无参数则显示当前设置; <name>: vscode等短名称; <cmd>: \"完整命令\")${NC}\n" ""
     printf "  %-22s  ${GRAY}(配置保存在 ~/.gw_editor_pref 文件中)${NC}\n" ""
     echo ""
 

@@ -46,8 +46,8 @@ declare -a action_files=(
     # "${SCRIPT_DIR}/actions/cmd_undo.sh" # Already covered by cmd_*.sh
     # "${SCRIPT_DIR}/actions/cmd_unstage.sh" # Already covered by cmd_*.sh
 )
-if [ -f "${SCRIPT_DIR}/actions/show_help.sh" ]; then
-    action_files+=("${SCRIPT_DIR}/actions/show_help.sh")
+if [ -f "${SCRIPT_DIR}/actions/cmd_help.sh" ]; then
+    action_files+=("${SCRIPT_DIR}/actions/cmd_help.sh")
 fi
 shopt -u nullglob
 
@@ -320,7 +320,11 @@ main() {
             LAST_COMMAND_STATUS=$?
             ;;
         help|--help|-h)
-            show_help "$@" # Pass remaining args to help
+            cmd_help "$@" # Pass remaining args to help
+            LAST_COMMAND_STATUS=$?
+            ;;
+        ide)
+            cmd_ide "$@"
             LAST_COMMAND_STATUS=$?
             ;;
         ide)

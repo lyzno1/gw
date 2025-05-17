@@ -1,6 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import url('/styles/animations.css');
 
 @layer base {
   :root {
@@ -55,6 +56,39 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow-y: scroll; /* 防止滚动条跳动 */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* 改进代码块样式 */
+  pre {
+    margin: 1.5rem 0;
+    overflow: auto;
+    border-radius: var(--radius);
+    background-color: hsl(var(--muted));
+    padding: 0 !important; /* 确保一致的内边距 */
+    position: relative;
+  }
+  
+  pre > code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.875rem !important;
+    line-height: 1.6 !important;
+    padding: 1rem !important;
+    display: block;
+    tab-size: 2;
+  }
+  
+  /* 消除代码块中不必要的边距，避免跳动 */
+  :not(pre) > code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.875rem;
+    background-color: hsl(var(--muted));
+    padding: 0.2em 0.4em;
+    border-radius: 0.25rem;
+    white-space: nowrap;
   }
 }
 

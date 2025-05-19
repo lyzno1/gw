@@ -182,8 +182,9 @@ cmd_save() {
         local editor_opened_successfully=false
         local editor_to_use=""
         local editor_source_msg=""
+        local tried_fallback=false
 
-        # 1. 尝试从 gw 偏好文件读取
+        # 1. 尝试从 gw 偏好文件读取（无论命令是否存在都尝试）
         local gw_editor_pref_file="$HOME/.gw_editor_pref"
         if [ -f "$gw_editor_pref_file" ] && [ -s "$gw_editor_pref_file" ]; then
             local preferred_editor_cmd
@@ -191,16 +192,15 @@ cmd_save() {
             if [ -n "$preferred_editor_cmd" ]; then
                 local cmd_head_pref
                 cmd_head_pref=$(echo "$preferred_editor_cmd" | awk '{print $1}')
-                if command -v "$cmd_head_pref" >/dev/null 2>&1; then
-                    editor_to_use="$preferred_editor_cmd"
-                    editor_source_msg="gw 偏好设置 ($gw_editor_pref_file)"
-                else
-                    print_warning "gw 偏好文件中配置的编辑器命令 '$cmd_head_pref' 未找到，将尝试其他编辑器。"
+                if ! command -v "$cmd_head_pref" >/dev/null 2>&1; then
+                    print_warning "gw 偏好文件中配置的编辑器命令 '$cmd_head_pref' 未找到，但仍将尝试使用。"
                 fi
+                editor_to_use="$preferred_editor_cmd"
+                editor_source_msg="gw 偏好设置 ($gw_editor_pref_file)"
             fi
         fi
 
-        # 2. 如果 gw 偏好未设置或无效，尝试 code --wait
+        # 2. 如果 gw 偏好未设置，则尝试 code --wait
         if [ -z "$editor_to_use" ] && command -v code >/dev/null 2>&1; then
             editor_to_use="code --wait"
             editor_source_msg="'code --wait' 命令"
@@ -218,33 +218,49 @@ cmd_save() {
             editor_source_msg="\$EDITOR 环境变量"
         fi
 
+        # --- 实际尝试打开编辑器 ---
         if [ -n "$editor_to_use" ]; then
             print_info "检测到编辑器 ($editor_source_msg)，尝试使用 '$editor_to_use' 打开编辑..."
-            # 将 $editor_to_use 按空格分割成命令和参数数组
             local editor_cmd_parts=()
-            # IFS=$' \t\n' # 保险起见，设置IFS，但通常直接数组赋值可以处理空格
             read -r -a editor_cmd_parts <<< "$editor_to_use"
-            
             if "${editor_cmd_parts[@]}" "$commit_msg_file_orig"; then
                 editor_opened_successfully=true
                 print_success "编辑器已关闭。"
             else
                 local exit_code=$?
                 print_warning "编辑器命令 '$editor_to_use' 执行失败或未正常等待 (退出码: $exit_code)。"
-                # Fall through to manual confirmation
+                # 如果是用户自定义的编辑器，允许降级为默认
+                if [ -f "$gw_editor_pref_file" ] && [ -s "$gw_editor_pref_file" ]; then
+                    echo -e "${YELLOW}你设置的编辑器命令执行失败，是否要切换为默认编辑器 (code --wait) 并重试？${NC}"
+                    if confirm_action "切换为默认编辑器 (code --wait) 并自动更新 gw ide？"; then
+                        echo "code --wait" > "$gw_editor_pref_file"
+                        print_success "已将 gw ide 设置为 code --wait。即将重新执行保存流程..."
+                        tried_fallback=true
+                    else
+                        print_info "你选择不切换为默认编辑器，操作中止。"
+                        return 1
+                    fi
+                fi
             fi
         else
-            print_info "未检测到可用的自动编辑器配置 (gw 偏好, code, \$VISUAL, \$EDITOR)。"
+            print_info "未检测到可用的自动编辑器配置 (gw 偏好, code, $VISUAL, $EDITOR)。"
         fi
         
         # --- 如果编辑器未能自动打开并等待，则回退到手动确认 ---
-        if ! $editor_opened_successfully; then
+        if ! $editor_opened_successfully && ! $tried_fallback; then
             echo -e "${YELLOW}请在你的编辑器中打开并编辑以下文件以输入提交信息:${NC}"
             echo -e "  ${CYAN}${BOLD}$commit_msg_file_orig${NC}"
             echo -e "(在 macOS 上，你可以尝试 ${BOLD}Cmd + 点击${NC} 上面的路径快速打开)"
             echo -e -n "${CYAN}编辑完成后，请按 Enter 键继续提交... (按 Ctrl+C 取消提交)${NC}"
             read -r # 等待用户按 Enter
             # 假设用户已经编辑完毕
+        fi
+
+        # --- 如果刚才自动切换为默认编辑器，则重新执行 save 流程 ---
+        if $tried_fallback; then
+            print_info "重新执行 gw save..."
+            gw save "$@"
+            return $?
         fi
         
         # --- 后续检查和提交逻辑 (保持不变) ---

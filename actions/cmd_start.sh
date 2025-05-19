@@ -62,10 +62,10 @@ cmd_start() { # Renamed from cmd_new
     fi
 
     if $use_gnu_getopt; then
-        # GNU getopt 逻辑
-        parsed_args=$(getopt -o l --long local,base: -n 'gw start' -- "$@") # Renamed from 'cmd new'
+        # GNU getopt 逻辑，支持 -l/--local, -b/--base
+        parsed_args=$(getopt -o lb: --long local,base: -n 'gw start' -- "$@")
         if [ $? != 0 ]; then
-            echo "用法: gw start <new_branch_name> [--local] [--base <base_branch>]"
+            echo "用法: gw start <new_branch_name> [--local|-l] [--base|-b <base_branch>]"
             return 1
         fi
         eval set -- "$parsed_args"
@@ -75,7 +75,7 @@ cmd_start() { # Renamed from cmd_new
                     local_flag=true
                     shift
                     ;;
-                --base)
+                --base|-b)
                     base_branch_param="$2"
                     shift 2
                     ;;
@@ -90,7 +90,7 @@ cmd_start() { # Renamed from cmd_new
         done
         if [ -z "$1" ]; then
             print_error "错误：需要提供新分支名称。"
-            echo "用法: gw start <new_branch_name> [--local] [--base <base_branch>]"
+            echo "用法: gw start <new_branch_name> [--local|-l] [--base|-b <base_branch>]"
             return 1
         fi
         new_branch_name="$1"
@@ -107,33 +107,44 @@ cmd_start() { # Renamed from cmd_new
     else
         # getopt 未找到或非 GNU getopt，使用基础参数解析
         if command -v getopt >/dev/null 2>&1; then
-             print_warning "检测到非 GNU getopt，将使用基础参数解析。长选项如 --base 可能不受支持或需按 'gw start <branch> [base] --local' 格式。建议安装 GNU getopt (如 macOS: brew install gnu-getopt)。"
+             print_warning "检测到非 GNU getopt，将使用基础参数解析。长选项如 --base/-b 可能不受支持或需按 'gw start <branch> [base] --local/-l' 格式。建议安装 GNU getopt (如 macOS: brew install gnu-getopt)。"
         else
              print_warning "getopt 命令未找到，使用基础参数解析。这可能不支持所有高级选项。"
         fi
-        
         if [ -z "$1" ]; then
             print_error "错误：需要提供新分支名称。"
-            echo "用法 (基础解析): gw start <branch_name> [base_branch] [--local]"
+            echo "用法 (基础解析): gw start <branch_name> [base_branch] [--local|-l]"
             return 1
         fi
         new_branch_name="$1"
         shift
-        
-        # 尝试解析基础分支 (作为第二个位置参数)
-        if [[ "$1" != "--local" && -n "$1" ]]; then
-            base_branch_param="$1"
-            shift
-        fi
-        
-        if [[ "$1" == "--local" ]]; then
-            local_flag=true
-            shift
-        fi
-        
-        if [ $# -gt 0 ]; then
-            print_warning "忽略了 'start' 命令无法识别的额外参数 (基础解析): $@"
-        fi
+        # 解析所有参数，支持任意顺序
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --local|-l)
+                    local_flag=true
+                    shift
+                    ;;
+                --base|-b)
+                    if [ -n "$2" ]; then
+                        base_branch_param="$2"
+                        shift 2
+                    else
+                        print_error "--base/-b 需要一个参数。"
+                        return 1
+                    fi
+                    ;;
+                *)
+                    if [ -z "$base_branch_param" ]; then
+                        base_branch_param="$1"
+                        shift
+                    else
+                        print_warning "忽略了 'start' 命令无法识别的额外参数: $1"
+                        shift
+                    fi
+                    ;;
+            esac
+        done
     fi
 
     # 验证分支名是否有效

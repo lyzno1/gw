@@ -23,11 +23,11 @@
 
    *   **重要**：请务必将上述路径替换为您系统中 **实际的、您期望使用的 Visual Studio Code 应用程序** 的对应路径。
    *   如果您使用的是 VS Code Insiders 版本，其路径和命令名称可能会有所不同（例如，命令可能是 `code-insiders`，路径中可能是 `Visual Studio Code - Insiders.app`）。
-   *   您可以通过在访达 (Finder) 中右键点击 VS Code 应用程序，选择“显示包内容”，然后导航到 `Contents/Resources/app/bin/` 目录来确认 `code` 脚本是否存在及其确切位置。
+   *   您可以通过在访达 (Finder) 中右键点击 VS Code 应用程序，选择"显示包内容"，然后导航到 `Contents/Resources/app/bin/` 目录来确认 `code` 脚本是否存在及其确切位置。
 
 **2. 打开终端应用程序**
 
-   您可以在“应用程序” -> “实用工具”中找到它，或通过 Spotlight 搜索（`Cmd+Space` 然后输入 `Terminal`）。
+   您可以在"应用程序" -> "实用工具"中找到它，或通过 Spotlight 搜索（`Cmd+Space` 然后输入 `Terminal`）。
 
 **3. (可选) 检查并移除 `/usr/local/bin/code` 的旧链接或文件**
 
@@ -72,3 +72,39 @@
 *   **`PATH` 环境变量**：`/usr/local/bin` 目录通常应该在您的 `PATH` 环境变量中。如果不在，您可能还需要将其添加到您的 shell 配置文件（如 `~/.zshrc` 或 `~/.bashrc`）中，例如 `export PATH="/usr/local/bin:$PATH"`，然后重新加载配置文件或重启终端。但对于大多数 macOS 系统，`/usr/local/bin` 默认就在 `PATH` 中。
 
 希望这份指南能帮助您解决问题！
+
+## 如何为 Cursor 设置全局符号链接
+
+如果你使用 [Cursor](https://www.cursor.so/) 编辑器，并希望像 VS Code 一样通过命令行全局调用 `cursor` 命令，可以按照以下步骤操作：
+
+1. **找到 Cursor 的 CLI 工具路径**
+
+   Cursor 的命令行工具通常位于：
+   `/Applications/Cursor.app/Contents/Resources/app/bin/cursor`
+
+   > 路径结构和 VS Code 完全一致，只是应用名称不同。
+
+2. **创建全局符号链接**
+
+   在终端中执行以下命令，将 `cursor` 命令链接到 `/usr/local/bin/`，这样你可以在任意终端窗口直接输入 `cursor` 调用 Cursor：
+
+   ```bash
+   sudo ln -s "/Applications/Cursor.app/Contents/Resources/app/bin/cursor" /usr/local/bin/cursor
+   ```
+   > 如有同名旧链接，建议先 `sudo rm /usr/local/bin/cursor` 再执行上述命令。
+
+3. **验证**
+
+   关闭并重新打开终端，执行：
+   ```bash
+   which cursor
+   cursor --version
+   ```
+   应该分别输出 `/usr/local/bin/cursor` 和 Cursor 的版本号。
+
+4. **用法示例**
+
+   - 直接用 `cursor .` 打开当前目录
+   - 用 `cursor --wait 文件名` 让命令行等待你编辑完成（适用于 git、gw save 等自动化脚本）
+
+> 这样设置后，依赖 `cursor` 命令的工具和脚本都能全局调用 Cursor 编辑器。

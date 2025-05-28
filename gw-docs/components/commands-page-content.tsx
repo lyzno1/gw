@@ -48,7 +48,7 @@ export function CommandsPageContent(props: CommandsPageContentProps) {
               },
               {
                 name: "submit",
-                syntax: "gw submit [--no-switch] [--pr] [-a|--auto-merge] [--delete-branch-after-merge]",
+                syntax: "gw submit [--no-switch] [--pr] [-a|--auto-merge] [-s|--squash] [--merge-strategy <strategy>] [--delete-branch-after-merge]",
                 description: t("docs.commands.coreWorkflow.submit"),
               },
               {

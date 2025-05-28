@@ -40,7 +40,13 @@ gw submit --no-switch
 gw submit --pr
 
 # Submit, create PR, and auto-merge when CI passes
-gw submit --pr --auto-merge`;
+gw submit --pr --auto-merge
+
+# Submit with squash merge strategy
+gw submit -s
+
+# Submit with explicit merge strategy
+gw submit --merge-strategy squash`;
 
   const rmExamples = `# Delete a specific branch
 gw rm feature/old-feature

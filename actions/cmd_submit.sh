@@ -17,6 +17,7 @@ cmd_submit() { # Renamed from cmd_finish
     local no_switch=false
     local do_pr=false
     local auto_merge=false
+    local merge_strategy="rebase" # 默认合并策略为 rebase
     local delete_branch_after_merge=false
     local merge_args=() # 存储传递给 gh pr merge 的参数
 
@@ -31,9 +32,36 @@ cmd_submit() { # Renamed from cmd_finish
                 do_pr=true
                 shift
                 ;;
-           -a|--auto-merge) # 添加 -a 别名
+           -a|--auto-merge) # 添加 -a 别名，默认使用 rebase 策略
                auto_merge=true
                do_pr=true # 自动合并隐含了需要先创建 PR
+               merge_strategy="rebase" # -a 默认使用 rebase
+               shift
+               ;;
+           -s|--squash) # 新增：使用 squash 策略自动合并
+               auto_merge=true
+               do_pr=true
+               merge_strategy="squash"
+               shift
+               ;;
+           --merge-strategy)
+               # 新增：显式指定合并策略
+               if [[ $# -lt 2 ]]; then
+                   print_error "--merge-strategy 需要指定策略参数 (rebase|squash|merge)"
+                   return 1
+               fi
+               shift
+               case "$1" in
+                   rebase|squash|merge)
+                       auto_merge=true
+                       do_pr=true
+                       merge_strategy="$1"
+                       ;;
+                   *)
+                       print_error "不支持的合并策略: $1。支持的策略: rebase, squash, merge"
+                       return 1
+                       ;;
+               esac
                shift
                ;;
            --delete-branch-after-merge)
@@ -174,9 +202,24 @@ cmd_submit() { # Renamed from cmd_finish
                 # 如果指定了自动合并
                 if $auto_merge; then
 
-                    echo -e "${BLUE}检测到 -a|--auto-merge，尝试立即使用 rebase 策略合并 PR...${NC}"
-                    # 强制使用 rebase 策略
-                    merge_args=("--rebase")
+                    echo -e "${BLUE}检测到自动合并选项，尝试立即使用 ${YELLOW}$merge_strategy${BLUE} 策略合并 PR...${NC}"
+                    
+                    # 根据合并策略设置参数
+                    case "$merge_strategy" in
+                        rebase)
+                            merge_args=("--rebase")
+                            ;;
+                        squash)
+                            merge_args=("--squash")
+                            ;;
+                        merge)
+                            merge_args=("--merge")
+                            ;;
+                        *)
+                            print_error "未知的合并策略: $merge_strategy"
+                            return 1
+                            ;;
+                    esac
 
                     if $delete_branch_after_merge; then
                         echo -e "${BLUE}合并后将删除源分支 (--delete-branch)。${NC}"
@@ -186,10 +229,10 @@ cmd_submit() { # Renamed from cmd_finish
                     print_step "执行: gh pr merge $pr_url ${merge_args[*]}"
                     if gh pr merge "$pr_url" "${merge_args[@]}"; then
 
-                        echo -e "${GREEN}Pull Request 已成功使用 rebase 策略自动合并！${NC}"
+                        echo -e "${GREEN}Pull Request 已成功使用 ${YELLOW}$merge_strategy${GREEN} 策略自动合并！${NC}"
                     else
-                        print_error "自动合并 Pull Request (使用 rebase) 失败。"
-                        echo -e "${CYAN}请检查错误信息、PR 状态（如检查是否通过、是否有冲突、是否允许 rebase 合并）以及您的合并权限。${NC}"
+                        print_error "自动合并 Pull Request (使用 $merge_strategy) 失败。"
+                        echo -e "${CYAN}请检查错误信息、PR 状态（如检查是否通过、是否有冲突、是否允许 $merge_strategy 合并）以及您的合并权限。${NC}"
                         # 即使合并失败，PR 也已创建
 
                     fi
@@ -209,7 +252,11 @@ cmd_submit() { # Renamed from cmd_finish
         fi
     else
         echo -e "${CYAN}现在您可以前往 GitHub/GitLab 等平台基于 '$current_branch' 创建 Pull Request / Merge Request。${NC}"
-        echo -e "${PURPLE}(提示: 下次可以使用 'gw submit --pr' 来尝试自动创建 GitHub PR，或使用 'gw submit -a' 尝试创建并 rebase 合并)${NC}"
+        echo -e "${PURPLE}(提示: 下次可以使用以下选项自动创建和合并 GitHub PR:${NC}"
+        echo -e "${PURPLE}  'gw submit --pr' - 仅创建 PR${NC}"
+        echo -e "${PURPLE}  'gw submit -a' - 创建并使用 rebase 策略合并${NC}"
+        echo -e "${PURPLE}  'gw submit -s' - 创建并使用 squash 策略合并${NC}"
+        echo -e "${PURPLE}  'gw submit --merge-strategy squash' - 显式指定 squash 策略)${NC}"
         
     fi
 

@@ -147,7 +147,7 @@ export function CoreWorkflowPageContent({
             {locale === "zh" ? "语法" : "Syntax"}
           </h3>
           <CodeBlock
-            code="gw submit [--no-switch] [--pr] [-a|--auto-merge] [--delete-branch-after-merge]"
+            code="gw submit [--no-switch] [--pr] [-a|--auto-merge] [-s|--squash] [--merge-strategy <strategy>] [--delete-branch-after-merge]"
             language="bash"
           />
           <h3 className="mt-6 scroll-m-20 text-lg font-semibold tracking-tight">
@@ -165,6 +165,14 @@ export function CoreWorkflowPageContent({
             <li>
               <code>-a|--auto-merge</code>:
               {locale === "zh" ? "如果可能，自动合并 PR" : "Automatically merge the PR if possible"}
+            </li>
+            <li>
+              <code>-s|--squash</code>:
+              {locale === "zh" ? "将所有更改压缩到一个提交中" : "Squash all changes into one commit"}
+            </li>
+            <li>
+              <code>--merge-strategy &lt;strategy&gt;</code>:
+              {locale === "zh" ? "指定合并策略" : "Specify merge strategy"}
             </li>
             <li>
               <code>--delete-branch-after-merge</code>:

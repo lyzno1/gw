@@ -32,16 +32,22 @@ cmd_submit() { # Renamed from cmd_finish
                 do_pr=true
                 shift
                 ;;
-           -a|--auto-merge) # 添加 -a 别名，默认使用 rebase 策略
+           -a|--auto-merge|--rebase) # -a 使用 rebase 策略 (最佳实践)
                auto_merge=true
                do_pr=true # 自动合并隐含了需要先创建 PR
-               merge_strategy="rebase" # -a 默认使用 rebase
+               merge_strategy="rebase"
                shift
                ;;
-           -s|--squash) # 新增：使用 squash 策略自动合并
+           -s|--squash) # -s 使用 squash 策略 (压缩提交)
                auto_merge=true
                do_pr=true
                merge_strategy="squash"
+               shift
+               ;;
+           -m|--merge) # -m 使用 merge 策略 (保留分支)
+               auto_merge=true
+               do_pr=true
+               merge_strategy="merge"
                shift
                ;;
            --merge-strategy)
@@ -254,10 +260,10 @@ cmd_submit() { # Renamed from cmd_finish
         echo -e "${CYAN}现在您可以前往 GitHub/GitLab 等平台基于 '$current_branch' 创建 Pull Request / Merge Request。${NC}"
         echo -e "${PURPLE}(提示: 下次可以使用以下选项自动创建和合并 GitHub PR:${NC}"
         echo -e "${PURPLE}  'gw submit --pr' - 仅创建 PR${NC}"
-        echo -e "${PURPLE}  'gw submit -a' - 创建并使用 rebase 策略合并${NC}"
+        echo -e "${PURPLE}  'gw submit -a' - 创建并使用 rebase 策略合并 (推荐)${NC}"
         echo -e "${PURPLE}  'gw submit -s' - 创建并使用 squash 策略合并${NC}"
-        echo -e "${PURPLE}  'gw submit --merge-strategy squash' - 显式指定 squash 策略)${NC}"
-        
+        echo -e "${PURPLE}  'gw submit -m' - 创建并使用 merge 策略合并${NC}"
+        echo -e "${PURPLE}  'gw submit -a --delete-branch-after-merge' - rebase 合并后删除分支)${NC}"
     fi
 
     # 4. 询问是否切回主分支 (除非指定了 --no-switch)

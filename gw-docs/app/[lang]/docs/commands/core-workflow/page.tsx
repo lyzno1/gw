@@ -45,6 +45,9 @@ gw submit --pr --auto-merge
 # Submit with squash merge strategy
 gw submit -s
 
+# Submit with merge strategy (preserves branch structure)
+gw submit -m
+
 # Submit with explicit merge strategy
 gw submit --merge-strategy squash`;
 

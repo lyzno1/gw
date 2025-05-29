@@ -147,7 +147,7 @@ export function CoreWorkflowPageContent({
             {locale === "zh" ? "语法" : "Syntax"}
           </h3>
           <CodeBlock
-            code="gw submit [--no-switch] [--pr] [-a|--auto-merge] [-s|--squash] [--merge-strategy <strategy>] [--delete-branch-after-merge]"
+            code="gw submit [--no-switch] [--pr] [-a|--auto-merge|--rebase] [-s|--squash] [-m|--merge] [--merge-strategy <strategy>] [--delete-branch-after-merge]"
             language="bash"
           />
           <h3 className="mt-6 scroll-m-20 text-lg font-semibold tracking-tight">
@@ -163,12 +163,16 @@ export function CoreWorkflowPageContent({
               {locale === "zh" ? "创建拉取请求（需要 GitHub CLI）" : "Create a pull request (requires GitHub CLI)"}
             </li>
             <li>
-              <code>-a|--auto-merge</code>:
-              {locale === "zh" ? "如果可能，自动合并 PR" : "Automatically merge the PR if possible"}
+              <code>-a|--auto-merge|--rebase</code>:
+              {locale === "zh" ? "如果可能，自动合并 PR 或使用 rebase" : "Automatically merge the PR if possible or use rebase"}
             </li>
             <li>
               <code>-s|--squash</code>:
               {locale === "zh" ? "将所有更改压缩到一个提交中" : "Squash all changes into one commit"}
+            </li>
+            <li>
+              <code>-m|--merge</code>:
+              {locale === "zh" ? "将所有更改合并到主分支" : "Merge all changes into the main branch"}
             </li>
             <li>
               <code>--merge-strategy &lt;strategy&gt;</code>:

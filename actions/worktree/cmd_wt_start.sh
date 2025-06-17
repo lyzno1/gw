@@ -136,8 +136,9 @@ cmd_wt_start() {
         return 1
     fi
 
-    # 检查worktree目录是否已存在
-    local worktree_dir="dev/$new_branch_name"
+    # 生成worktree目录名（将斜杠转换为连字符避免嵌套目录）
+    local worktree_dir_name=$(branch_to_worktree_dirname "$new_branch_name")
+    local worktree_dir="dev/$worktree_dir_name"
     if [ -d "$worktree_dir" ]; then
         print_error "错误：worktree目录 '$worktree_dir' 已存在。"
         return 1
@@ -222,6 +223,9 @@ cmd_wt_start() {
     echo -e "${CYAN}📂 新的Worktree信息：${NC}"
     echo -e "  分支名称: ${BOLD}$new_branch_name${NC}"
     echo -e "  工作目录: ${BOLD}$worktree_dir/${NC}"
+    if [ "$worktree_dir_name" != "$new_branch_name" ]; then
+        echo -e "  ${GRAY}(注: 分支名包含'/', 目录名已转换为 '$worktree_dir_name')${NC}"
+    fi
     echo -e "  基础分支: ${BOLD}$base_branch${NC}"
     echo ""
     echo -e "${CYAN}💡 接下来你可以：${NC}"

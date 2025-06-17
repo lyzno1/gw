@@ -167,4 +167,10 @@ find_worktree_root() {
     done
     
     return 1
+}
+
+# 将分支名转换为worktree目录名（将斜杠转换为连字符）
+branch_to_worktree_dirname() {
+    local branch_name="$1"
+    echo "$branch_name" | sed 's|/|-|g'
 } 

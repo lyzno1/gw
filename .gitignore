@@ -1,1 +1,6 @@
 /tools/
+# GW Worktree配置目录
+.gw
+
+# GW Worktree开发目录
+/dev

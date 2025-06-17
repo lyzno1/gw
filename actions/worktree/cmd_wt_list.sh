@@ -59,7 +59,7 @@ cmd_wt_list() {
     while IFS= read -r line; do
         local wt_path=$(echo "$line" | awk '{print $1}')
         local wt_commit=$(echo "$line" | awk '{print $2}' | tr -d '[]')
-        local wt_branch=$(echo "$line" | awk '{$1=$2=""; print $0}' | sed 's/^\s*\[//' | sed 's/\]\s*$//' | xargs)
+        local wt_branch=$(echo "$line" | grep -o '\[[^]]*\]' | tr -d '[]')
 
         # 标准化路径
         if [[ "$wt_path" == /* ]]; then
@@ -183,7 +183,7 @@ cmd_wt_list() {
         local cleanup_suggestions=()
         while IFS= read -r line; do
             local wt_path=$(echo "$line" | awk '{print $1}')
-            local wt_branch=$(echo "$line" | awk '{$1=$2=""; print $0}' | sed 's/^\s*\[//' | sed 's/\]\s*$//' | xargs)
+            local wt_branch=$(echo "$line" | grep -o '\[[^]]*\]' | tr -d '[]')
             
             if [[ "$wt_branch" != "$MAIN_BRANCH" ]] && [ -d "$wt_path" ]; then
                 # 检查分支是否已合并到主分支
@@ -212,7 +212,7 @@ cmd_wt_list() {
         local other_worktrees=()
         while IFS= read -r line; do
             local wt_path=$(echo "$line" | awk '{print $1}')
-            local wt_branch=$(echo "$line" | awk '{$1=$2=""; print $0}' | sed 's/^\s*\[//' | sed 's/\]\s*$//' | xargs)
+            local wt_branch=$(echo "$line" | grep -o '\[[^]]*\]' | tr -d '[]')
             
             if [[ "$current_dir" != "$wt_path"* ]] && [ -d "$wt_path" ]; then
                 other_worktrees+=("$wt_branch")

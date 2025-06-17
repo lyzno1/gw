@@ -25,7 +25,7 @@ cmd_wt_switch() {
         echo "用法: gw wt-switch <branch_name>"
         echo ""
         echo "可用的worktree:"
-        gw wt-list --simple
+        cmd_wt_list --simple
         return 1
     fi
 
@@ -35,7 +35,7 @@ cmd_wt_switch() {
 
     while IFS= read -r line; do
         local wt_path=$(echo "$line" | awk '{print $1}')
-        local wt_branch=$(echo "$line" | awk '{$1=$2=""; print $0}' | sed 's/^\s*\[//' | sed 's/\]\s*$//' | xargs)
+        local wt_branch=$(echo "$line" | grep -o '\[[^]]*\]' | tr -d '[]')
         
         if [ "$wt_branch" = "$target_branch" ]; then
             target_path="$wt_path"
@@ -48,7 +48,7 @@ cmd_wt_switch() {
         print_error "错误：未找到分支 '$target_branch' 对应的worktree。"
         echo ""
         echo "可用的worktree:"
-        gw wt-list --simple
+        cmd_wt_list --simple
         return 1
     fi
 

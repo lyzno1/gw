@@ -327,8 +327,41 @@ main() {
             cmd_ide "$@"
             LAST_COMMAND_STATUS=$?
             ;;
-        ide)
-            cmd_ide "$@"
+        # Worktree命令
+        wt-init)
+            cmd_wt_init "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
+        wt-start)
+            cmd_wt_start "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
+        wt-list)
+            cmd_wt_list "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
+        wt-switch)
+            cmd_wt_switch "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
+        wt-clean)
+            cmd_wt_clean "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
+        wt-update)
+            cmd_wt_update "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
+        wt-submit)
+            cmd_wt_submit "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
+        wt-prune)
+            cmd_wt_prune "$@"
+            LAST_COMMAND_STATUS=$?
+            ;;
+        worktree)
+            cmd_worktree "$@"
             LAST_COMMAND_STATUS=$?
             ;;
         *)

@@ -76,7 +76,7 @@ cmd_wt_init() {
 
 # Worktree根目录布局
 WORKTREE_ROOT=$(pwd)
-MAIN_WORKTREE_DIR=main
+MAIN_WORKTREE_DIR=.
 DEV_WORKTREE_DIR=dev
 SHARED_DIR=dev/shared
 
@@ -89,7 +89,7 @@ EOF
     # 创建目录结构
     print_step "✅ 创建目录结构..."
     
-    # 如果当前不在主分支，先切换到主分支
+    # 确保在主分支上
     if [ "$current_branch" != "$MAIN_BRANCH" ]; then
         print_info "当前在分支 '$current_branch'，切换到主分支 '$MAIN_BRANCH'..."
         if ! git checkout "$MAIN_BRANCH"; then
@@ -101,28 +101,8 @@ EOF
     # 创建dev目录和shared目录
     mkdir -p dev/shared
 
-    # 将当前内容移动到main目录
-    print_step "✅ 设置主分支worktree: main/"
-    
-    # 创建临时目录来存储当前内容
-    local temp_dir=".gw_temp_$(date +%s)"
-    mkdir "$temp_dir"
-    
-    # 移动所有文件和目录到临时目录（除了.git, dev, .gw和临时目录本身）
-    find . -maxdepth 1 -not -name '.' -not -name '.git' -not -name 'dev' -not -name '.gw' -not -name "$temp_dir" -exec mv {} "$temp_dir/" \;
-    
-    # 创建main worktree
-    if ! git worktree add main "$MAIN_BRANCH"; then
-        print_error "创建main worktree失败。"
-        # 恢复文件
-        mv "$temp_dir"/* .
-        rmdir "$temp_dir"
-        return 1
-    fi
-    
-    # 将内容移动到main目录
-    mv "$temp_dir"/* main/
-    rmdir "$temp_dir"
+    print_step "✅ 设置主分支worktree: 当前目录"
+    print_info "当前目录已被设置为主分支工作目录。"
 
     # 更新.gitignore
     print_step "✅ 更新.gitignore配置..."
@@ -153,12 +133,12 @@ EOF
     fi
 
     # 创建活跃worktree记录文件
-    echo "main:$MAIN_BRANCH:$(date):active" > .gw/active-worktrees
+    echo "$MAIN_BRANCH:$MAIN_BRANCH:$(date):active" > .gw/active-worktrees
 
     print_success "✅ Worktree环境初始化完成"
     echo ""
     echo -e "${CYAN}💡 Worktree环境已就绪：${NC}"
-    echo -e "  - 主分支代码在: ${BOLD}main/${NC}"
+    echo -e "  - 主分支代码在: ${BOLD}当前目录${NC}"
     echo -e "  - 开发分支将创建在: ${BOLD}dev/${NC}"
     echo -e "  - 共享资源目录: ${BOLD}dev/shared/${NC}"
     echo ""

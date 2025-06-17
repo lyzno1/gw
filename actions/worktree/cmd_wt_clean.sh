@@ -81,18 +81,13 @@ cmd_wt_clean() {
     if [[ "$current_dir" == "$target_path"* ]]; then
         print_warning "您当前在要清理的worktree中，需要先切换到其他目录。"
         
-        # 自动切换到main worktree
-        if [ -d "main" ]; then
-            print_step "自动切换到main worktree..."
-            cd "$(git rev-parse --show-toplevel)/main" 2>/dev/null || {
-                print_error "无法切换到main目录，请手动切换到其他目录后重试。"
-                return 1
-            }
-            print_success "已切换到main worktree。"
-        else
-            print_error "请手动切换到其他目录后重试清理操作。"
+        # 自动切换到worktree根目录
+        print_step "自动切换到worktree根目录..."
+        cd "$(git rev-parse --show-toplevel)" 2>/dev/null || {
+            print_error "无法切换到worktree根目录，请手动切换到其他目录后重试。"
             return 1
-        fi
+        }
+                 print_success "已切换到worktree根目录。"
     fi
 
     # 检查worktree状态

@@ -90,7 +90,7 @@ cmd_wt_update() {
 
     # 1. 切换到主分支worktree并更新
     print_step "1/3: 更新主分支 ($MAIN_BRANCH)..."
-    local main_worktree_path="$worktree_root/main"
+    local main_worktree_path="$worktree_root"
     
     if [ ! -d "$main_worktree_path" ]; then
         print_error "主分支worktree目录不存在: $main_worktree_path"

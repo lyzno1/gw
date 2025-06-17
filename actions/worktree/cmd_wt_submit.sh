@@ -129,7 +129,7 @@ cmd_wt_submit() {
         echo -e "${CYAN}💡 后续操作：${NC}"
         echo -e "  ${YELLOW}gw wt-list${NC}                    # 查看所有worktree"
         echo -e "  ${YELLOW}gw wt-clean $current_branch${NC}    # 手动清理此worktree"
-        echo -e "  ${YELLOW}gw wt-switch main${NC}             # 切换到主分支"
+        echo -e "  ${YELLOW}gw wt-switch $MAIN_BRANCH${NC}             # 切换到主分支"
     fi
 
     return 0

@@ -117,15 +117,46 @@ cmd_wt_update() {
         print_warning "主分支checkout失败，但继续尝试更新..."
     fi
 
+    # 检查主分支是否有未提交的更改
+    local main_stash_needed=false
+    if check_uncommitted_changes || check_untracked_files; then
+        print_warning "检测到主分支有未提交的变更，自动暂存..."
+        if git stash push -m "自动暂存主分支变更 (在wt-update时)"; then
+            main_stash_needed=true
+        else
+            print_error "主分支stash保存失败。"
+            cd "$original_pwd"
+            if $stash_needed; then
+                print_warning "正在尝试恢复之前暂存的变更..."
+                git stash pop
+            fi
+            return 1
+        fi
+    fi
+
     # 拉取主分支最新代码
     if ! do_pull_with_retry --rebase "$REMOTE_NAME" "$MAIN_BRANCH"; then
         print_error "拉取主分支更新失败。"
+        if $main_stash_needed; then
+            print_warning "正在尝试恢复主分支暂存的变更..."
+            git stash pop
+        fi
         cd "$original_pwd"
         if $stash_needed; then
             print_warning "正在尝试恢复之前暂存的变更..."
             git stash pop
         fi
         return 1
+    fi
+
+    # 恢复主分支的暂存变更
+    if $main_stash_needed; then
+        print_step "正在恢复主分支暂存的变更..."
+        if git stash pop; then
+            print_info "主分支暂存变更已恢复。"
+        else
+            print_warning "主分支暂存恢复失败，可能有冲突。请检查主分支状态。"
+        fi
     fi
     print_success "主分支已更新。"
 

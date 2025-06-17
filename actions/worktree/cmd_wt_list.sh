@@ -13,7 +13,9 @@ cmd_wt_list() {
     if ! check_in_git_repo; then return 1; fi
 
     # 检查是否在worktree环境中
-    if [ ! -f ".gw/worktree-config" ]; then
+    local worktree_root
+    worktree_root=$(find_worktree_root)
+    if [ $? -ne 0 ]; then
         print_error "当前不在worktree环境中。请先运行 'gw wt-init' 初始化worktree环境。"
         return 1
     fi
@@ -44,16 +46,28 @@ cmd_wt_list() {
 
     # 获取当前工作目录，用于标识当前所在的worktree
     local current_dir=$(pwd)
-    local worktree_root
-    if [ -f ".gw/worktree-config" ]; then
-        source .gw/worktree-config
-    fi
-    worktree_root=${WORKTREE_ROOT:-$(git rev-parse --show-toplevel)}
+    
+    # 进入worktree根目录来读取配置
+    local old_pwd=$(pwd)
+    cd "$worktree_root"
+    source .gw/worktree-config
+    cd "$old_pwd"
 
     # 获取所有worktree信息
     local worktree_count=0
     local active_count=0
     local total_size=0
+
+    # 首先找到当前目录所属的worktree（最长匹配）
+    local current_worktree_path=""
+    while IFS= read -r line; do
+        local wt_path=$(echo "$line" | awk '{print $1}')
+        if [[ "$current_dir" == "$wt_path" ]] || [[ "$current_dir" == "$wt_path"/* ]]; then
+            if [ ${#wt_path} -gt ${#current_worktree_path} ]; then
+                current_worktree_path="$wt_path"
+            fi
+        fi
+    done < <(cd "$worktree_root" && git worktree list 2>/dev/null)
 
     # 使用git worktree list获取准确信息
     while IFS= read -r line; do
@@ -70,9 +84,9 @@ cmd_wt_list() {
             local display_path="$wt_path"
         fi
 
-        # 判断是否是当前目录
+        # 判断是否是当前目录（使用最长匹配）
         local is_current=false
-        if [[ "$current_dir" == "$wt_path"* ]]; then
+        if [[ "$wt_path" == "$current_worktree_path" ]]; then
             is_current=true
         fi
 
@@ -158,7 +172,7 @@ cmd_wt_list() {
 
         echo ""
 
-    done < <(git worktree list 2>/dev/null)
+    done < <(cd "$worktree_root" && git worktree list 2>/dev/null)
 
     # 显示统计信息
     if $show_stats; then
@@ -206,7 +220,7 @@ cmd_wt_list() {
                     cd "$old_pwd"
                 fi
             fi
-        done < <(git worktree list 2>/dev/null)
+        done < <(cd "$worktree_root" && git worktree list 2>/dev/null)
 
         # 显示切换建议
         local other_worktrees=()
@@ -217,7 +231,7 @@ cmd_wt_list() {
             if [[ "$current_dir" != "$wt_path"* ]] && [ -d "$wt_path" ]; then
                 other_worktrees+=("$wt_branch")
             fi
-        done < <(git worktree list 2>/dev/null)
+        done < <(cd "$worktree_root" && git worktree list 2>/dev/null)
 
         if [ ${#other_worktrees[@]} -gt 0 ]; then
             echo -e "  ${YELLOW}gw wt-switch ${other_worktrees[0]}${NC}    # 切换到其他worktree"

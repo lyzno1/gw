@@ -150,4 +150,21 @@ get_commit_msg_file() {
     fi
     
     echo "$commit_msg_file"
+}
+
+# 查找worktree根目录（包含.gw/worktree-config的目录）
+find_worktree_root() {
+    local current_dir=$(pwd)
+    local original_dir="$current_dir"
+    
+    # 从当前目录向上查找包含.gw/worktree-config的目录
+    while [ "$current_dir" != "/" ]; do
+        if [ -f "$current_dir/.gw/worktree-config" ]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir=$(dirname "$current_dir")
+    done
+    
+    return 1
 } 

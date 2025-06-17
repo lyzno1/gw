@@ -13,7 +13,9 @@ cmd_wt_switch() {
     if ! check_in_git_repo; then return 1; fi
 
     # 检查是否在worktree环境中
-    if [ ! -f ".gw/worktree-config" ]; then
+    local worktree_root
+    worktree_root=$(find_worktree_root)
+    if [ $? -ne 0 ]; then
         print_error "当前不在worktree环境中。请先运行 'gw wt-init' 初始化worktree环境。"
         return 1
     fi
@@ -42,7 +44,7 @@ cmd_wt_switch() {
             found=true
             break
         fi
-    done < <(git worktree list 2>/dev/null)
+    done < <(cd "$worktree_root" && git worktree list 2>/dev/null)
 
     if ! $found; then
         print_error "错误：未找到分支 '$target_branch' 对应的worktree。"

@@ -113,7 +113,7 @@ cmd_wt_submit() {
             cd "$worktree_root"
             
             # 调用清理命令
-            if gw wt-clean "$current_branch" --force; then
+            if cmd_wt_clean "$current_branch" --force; then
                 print_success "Worktree自动清理完成。"
             else
                 print_warning "自动清理失败，请手动清理：gw wt-clean $current_branch"

@@ -13,7 +13,9 @@ cmd_wt_clean() {
     if ! check_in_git_repo; then return 1; fi
 
     # 检查是否在worktree环境中
-    if [ ! -f ".gw/worktree-config" ]; then
+    local worktree_root
+    worktree_root=$(find_worktree_root)
+    if [ $? -ne 0 ]; then
         print_error "当前不在worktree环境中。请先运行 'gw wt-init' 初始化worktree环境。"
         return 1
     fi
@@ -46,7 +48,7 @@ cmd_wt_clean() {
         echo "用法: gw wt-clean <branch_name> [--force|-f] [--keep-branch|-k]"
         echo ""
         echo "可清理的worktree:"
-        gw wt-list --simple
+        cmd_wt_list --simple
         return 1
     fi
 
@@ -62,14 +64,14 @@ cmd_wt_clean() {
 
     while IFS= read -r line; do
         local wt_path=$(echo "$line" | awk '{print $1}')
-        local wt_branch=$(echo "$line" | awk '{$1=$2=""; print $0}' | sed 's/^\s*\[//' | sed 's/\]\s*$//' | xargs)
+        local wt_branch=$(echo "$line" | grep -o '\[[^]]*\]' | tr -d '[]')
         
         if [ "$wt_branch" = "$target_branch" ]; then
             target_path="$wt_path"
             found=true
             break
         fi
-    done < <(git worktree list 2>/dev/null)
+    done < <(cd "$worktree_root" && git worktree list 2>/dev/null)
 
     if ! $found; then
         print_error "错误：未找到分支 '$target_branch' 对应的worktree。"

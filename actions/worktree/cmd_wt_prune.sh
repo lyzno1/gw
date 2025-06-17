@@ -196,7 +196,7 @@ cmd_wt_prune() {
         print_success "=== Worktree清理完成 ==="
         echo ""
         echo -e "${CYAN}📊 清理后状态：${NC}"
-        gw wt-list --simple
+        cmd_wt_list --simple
     fi
 
     return 0

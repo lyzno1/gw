@@ -42,6 +42,7 @@ shopt -s nullglob
 declare -a action_files=(
     "${SCRIPT_DIR}/actions/cmd_"*.sh
     "${SCRIPT_DIR}/actions/gw_"*.sh
+    "${SCRIPT_DIR}/actions/worktree/cmd_wt_"*.sh
     # Explicitly add new files if they don't match cmd_* or gw_*
     # "${SCRIPT_DIR}/actions/cmd_undo.sh" # Already covered by cmd_*.sh
     # "${SCRIPT_DIR}/actions/cmd_unstage.sh" # Already covered by cmd_*.sh
@@ -209,13 +210,9 @@ main() {
             LAST_COMMAND_STATUS=$?
             ;;
         update) # Renamed from sync
-            if [ "$#" -ne 0 ]; then
-                _report_arg_error "update" "命令 'update' 当前不需要参数。" # Renamed from sync
-            else
-                cmd_update # Renamed from cmd_sync
-                LAST_COMMAND_STATUS=$?
-             fi
-             ;;
+            cmd_update "$@" # Renamed from cmd_sync
+            LAST_COMMAND_STATUS=$?
+            ;;
         branch)
             cmd_branch "$@"
                     LAST_COMMAND_STATUS=$?

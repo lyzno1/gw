@@ -9,9 +9,34 @@
 # - config_vars.sh (配置变量)
 # - git_network_ops.sh (do_pull_with_retry)
 
-# 同步当前分支 (拉取主分支最新代码并 rebase)
+# 同步当前分支 (拉取主分支最新代码并 rebase 或 merge)
 cmd_update() { # Renamed from cmd_sync
     if ! check_in_git_repo; then return 1; fi
+
+    # 解析参数
+    local use_merge=false
+    local args=()
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --merge|-m)
+                use_merge=true
+                shift
+                ;;
+            *)
+                args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    # 如果有未识别的参数，报错
+    if [ ${#args[@]} -gt 0 ]; then
+        print_error "未识别的参数: ${args[*]}"
+        echo "用法: gw update [--merge|-m]"
+        echo "  --merge, -m    使用 merge 而不是 rebase 来整合主分支变更"
+        return 1
+    fi
 
     local original_branch
     original_branch=$(get_current_branch_name)
@@ -63,65 +88,53 @@ cmd_update() { # Renamed from cmd_sync
     else # 非主分支的同步逻辑
         echo -e "${CYAN}=== 同步当前分支 ('$original_branch') ===${NC}"
         
-        # 2. 切换到主分支
-        print_step "1/3: 切换到主分支 ($MAIN_BRANCH)..."
-        if ! git checkout "$MAIN_BRANCH"; then
-            echo -e "${RED}切换到主分支失败。请检查您的工作区状态。${NC}"
-            if $stash_needed; then # 如果切换失败，尝试恢复 stash
-                print_warning "正在尝试恢复之前暂存的变更 (cmd_stash pop)..."
-                if ! cmd_stash pop; then
-                    print_warning "恢复暂存失败。手动处理: cmd_stash list / pop"
-                else
-                    print_success "暂存已恢复。"
-                fi
-            fi
-            return 1
-        fi
-
-        # 3. 拉取主分支最新代码
-        print_step "2/3: 从远程 '$REMOTE_NAME' 拉取主分支 ($MAIN_BRANCH) 的最新代码 (使用 rebase)..."
-        if ! do_pull_with_retry --rebase "$REMOTE_NAME" "$MAIN_BRANCH"; then # 明确使用 --rebase
-            echo -e "${RED}拉取主分支更新失败。${NC}"
-            echo -e "${BLUE}正在切换回原分支 '$original_branch'...${NC}"
-            git checkout "$original_branch"
-            if $stash_needed; then # 如果拉取失败，尝试恢复 stash
-                print_warning "正在尝试恢复之前暂存的变更 (cmd_stash pop)..."
-                if ! cmd_stash pop; then
-                    print_warning "恢复暂存失败。手动处理: cmd_stash list / pop"
-                else
-                    print_success "暂存已恢复。"
-                fi
-            fi
-            return 1
-        fi
-        print_success "主分支已更新。"
-
-        # 4. 切换回原分支
-        print_step "3/3: 切换回原分支 '$original_branch'..."
-        if ! git checkout "$original_branch"; then
-            echo -e "${RED}切换回原分支 '$original_branch' 失败。${NC}"
-            echo -e "${YELLOW}您的代码仍在最新的主分支上。请手动切换。${NC}"
-            # 注意：此时stash如果需要恢复，应在original_branch上恢复，但切换失败了，所以用户需特别注意
+        # 1. 获取远程主分支最新代码
+        print_step "1/2: 获取远程主分支 ($REMOTE_NAME/$MAIN_BRANCH) 的最新代码..."
+        if ! git fetch "$REMOTE_NAME" "$MAIN_BRANCH"; then
+            print_error "获取远程主分支更新失败。"
             if $stash_needed; then
-                print_warning "请注意：您之前暂存的变更需要手动在分支 '$original_branch' 上恢复 (cmd_stash pop)。"
+                print_warning "正在尝试恢复之前暂存的变更..."
+                if ! cmd_stash pop; then
+                    print_warning "恢复暂存失败。手动处理: cmd_stash list / pop"
+                else
+                    print_success "暂存已恢复。"
+                fi
             fi
             return 1
         fi
+        print_success "远程主分支已获取。"
 
-        # 5. Rebase 当前分支到主分支
-        echo -e "${BLUE}正在将当前分支 '$original_branch' Rebase 到最新的 '$MAIN_BRANCH'...${NC}"
-        if git rebase "$MAIN_BRANCH"; then
-            echo -e "${GREEN}成功将 '$original_branch' Rebase 到 '$MAIN_BRANCH'。${NC}"
+        # 2. 基于远程主分支进行 rebase 或 merge
+        if $use_merge; then
+            print_step "2/2: 将远程主分支 '$REMOTE_NAME/$MAIN_BRANCH' Merge 到当前分支 '$original_branch'..."
+            if git merge "$REMOTE_NAME/$MAIN_BRANCH"; then
+                print_success "成功将 '$REMOTE_NAME/$MAIN_BRANCH' Merge 到 '$original_branch'。"
+            else
+                print_error "Merge 操作失败或遇到冲突。"
+                echo -e "请解决 Merge 冲突。"
+                echo -e "解决冲突后，运行 'gw add <冲突文件>' 然后 'git commit'。"
+                echo -e "如果想中止 Merge，可以运行 'git merge --abort'。"
+                # Merge 失败时，stash 的恢复需要用户在 merge 完成后手动操作
+                if $stash_needed; then
+                    print_warning "请注意：您之前暂存的变更在 Merge 成功并结束后需要手动恢复 (git stash pop)。"
+                fi
+                return 1 # Merge 失败，脚本不应尝试自动 pop stash
+            fi
         else
-            echo -e "${RED}Rebase 操作失败或遇到冲突。${NC}"
-            echo -e "请解决 Rebase 冲突。"
-            echo -e "解决冲突后，运行 'gw add <冲突文件>' 然后 'git rebase --continue'。"
-            echo -e "如果想中止 Rebase，可以运行 'git rebase --abort'。"
-            # Rebase 失败时，stash 的恢复需要用户在 rebase 完成后手动操作
-            if $stash_needed; then
-                print_warning "请注意：您之前暂存的变更在 Rebase 成功并结束后需要手动恢复 (cmd_stash pop)。"
+            print_step "2/2: 将当前分支 '$original_branch' Rebase 到最新的 '$REMOTE_NAME/$MAIN_BRANCH'..."
+            if git rebase "$REMOTE_NAME/$MAIN_BRANCH"; then
+                print_success "成功将 '$original_branch' Rebase 到 '$REMOTE_NAME/$MAIN_BRANCH'。"
+            else
+                print_error "Rebase 操作失败或遇到冲突。"
+                echo -e "请解决 Rebase 冲突。"
+                echo -e "解决冲突后，运行 'gw add <冲突文件>' 然后 'git rebase --continue'。"
+                echo -e "如果想中止 Rebase，可以运行 'git rebase --abort'。"
+                # Rebase 失败时，stash 的恢复需要用户在 rebase 完成后手动操作
+                if $stash_needed; then
+                    print_warning "请注意：您之前暂存的变更在 Rebase 成功并结束后需要手动恢复 (git stash pop)。"
+                fi
+                return 1 # Rebase 失败，脚本不应尝试自动 pop stash
             fi
-            return 1 # Rebase 失败，脚本不应尝试自动 pop stash
         fi
     fi # 结束非主分支的同步逻辑
 
